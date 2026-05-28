@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ViciOne.Suite.DataPort</RootNamespace>
+    <AssemblyName>ViciOne.Suite.DataPort.Azure.IotHub</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Azure.EventGrid.Topic\ManagedQueue.cs" Link="ManagedQueue.cs" />
+    <Compile Include="..\Azure.EventGrid.Topic\ManagedQueueBufferEnumerator.cs" Link="ManagedQueueBufferEnumerator.cs" />
+    <Compile Include="..\Azure.EventGrid.Topic\ManagedQueueEnumerator.cs" Link="ManagedQueueEnumerator.cs" />
+    <Compile Include="..\Azure.EventGrid.Topic\ManagedQueueLog.cs" Link="ManagedQueueLog.cs" />
+    <Compile Include="..\Azure.EventGrid.Topic\WaitHandleExtensions.cs" Link="WaitHandleExtensions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Devices" />
+    <PackageReference Include="Microsoft.Azure.Devices.Client" />
+    <PackageReference Include="ViciOne.Suite.DataPort" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Azure.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

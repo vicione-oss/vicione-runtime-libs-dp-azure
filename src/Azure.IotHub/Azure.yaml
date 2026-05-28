@@ -1,0 +1,240 @@
+Common:
+  Target       : DataPort                                                                          # required: Id String to identify the target of the file
+  ContentType  : Rules                                                                             # required: Id String to identify the content of the file
+  Version      : 0.32.0                                                                            # required: Version of the file
+  Date         : 2026-05-11                                                                        # required: Date of the file
+  Description  : "Azure IoT Hub DataPort"                                                          # required: Description of the file
+  Author       : "ifm software gmbh"                                                               # required: Author of the file
+  MetadataType : YAML                                                                              # required: Metadata type of the file (YAML, JSON, XML, Text, Binary, ...)
+  Namespace    : "ViciOne.DataPort.Azure.IotHub"                                                   # required: Namespace of the DataPort
+
+Root:
+  Id                       : "AzureIotHubDataPort"                                                 # required: Id String to identify the root of the DataPort
+  Name                     : "Azure IoT Hub"                                                       # required: display name of the DataPort
+  Description              : "DataPort for Azure IoT Hub"                                          # required: display description of the DataPort
+  Icon                     : azure-iot-hub                                                         # required: just one Icon for the DataPort
+  ChildNodes               :
+    - Id                   : AzureIotInstance
+      MaxInstances         : 16
+
+Nodes:
+  - Id                     : AzureIotInstance
+    Type                   : DataPortNode
+    Name                   : "Instance"
+    Description            : "Azure instance"
+    MetadataLength         : 0
+    Icon                   : server
+    TransferDirections     : [ Outbound, Inbound ]
+    ChildNodes             :
+      - Id                 : Device
+        Required           : true
+        MaxInstances       : 16
+    PropertyCategories     :
+      - Id                 : Connection
+        Properties         :
+          - Id             : Hostname
+            Required       : true
+          - Id             : SharedAccessSignatureKey
+            Required       : true
+          - Id             : SharedAccessSignatureKeyName
+            Required       : true
+          - Id             : MaxPendingMessages
+          - Id             : BulkSize
+
+  - Id                     : Device
+    MappingId              : Device
+    Type                   : DataPortTreeNode
+    Name                   : "Device"
+    Description            : "Azure IoT Hub device"
+    Icon                   : device
+    ChildNodes             :
+      - Id                 : Telemetry
+        MaxInstances       : 1
+      - Id                 : Properties
+        MaxInstances       : 1
+
+  - Id                     : Telemetry
+    MappingId              : Telemetry
+    Type                   : DataPortTreeNode
+    Name                   : "Telemetry"
+    NameIsReadOnly         : true
+    Description            : "Telemetry data"
+    Icon                   : folder
+    TransferModes          : [ OnChange, Periodic, None ]
+    ChildNodes             :
+      - Id                 : JsonStructure
+      - Id                 : DataPointBool
+      - Id                 : DataPointInteger
+      - Id                 : DataPointFloat
+      - Id                 : DataPointDateTime
+      - Id                 : DataPointString
+      - Id                 : DataPointBinary
+
+  - Id                     : Properties
+    MappingId              : Properties
+    Type                   : DataPortTreeNode
+    Name                   : "Properties"
+    NameIsReadOnly         : true
+    Description            : "Properties data"
+    Icon                   : folder
+    ChildNodes             :
+      - Id                 : Reported
+        MaxInstances       : 1
+      - Id                 : Desired
+        MaxInstances       : 1
+
+  - Id                     : Reported
+    MappingId              : Reported
+    Type                   : DataPortTreeNode
+    Name                   : "Reported"
+    NameIsReadOnly         : true
+    Description            : "Reported properties data"
+    Icon                   : folder
+    TransferModes          : [ OnChange, Periodic, None ]
+    TransferDirections     : [ Outbound ]
+    ChildNodes             :
+      - Id                 : JsonStructure
+      - Id                 : DataPointBool
+      - Id                 : DataPointInteger
+      - Id                 : DataPointFloat
+      - Id                 : DataPointDateTime
+      - Id                 : DataPointString
+      - Id                 : DataPointBinary
+
+  - Id                     : Desired
+    MappingId              : Desired
+    Type                   : DataPortTreeNode
+    Name                   : "Desired"
+    NameIsReadOnly         : true
+    Description            : "Desired properties data"
+    Icon                   : folder
+    TransferModes          : [ OnChange, Periodic, None ]
+    TransferDirections     : [ Inbound ]
+    ChildNodes             :
+      - Id                 : JsonStructure
+      - Id                 : DataPointBool
+      - Id                 : DataPointInteger
+      - Id                 : DataPointFloat
+      - Id                 : DataPointDateTime
+      - Id                 : DataPointString
+      - Id                 : DataPointBinary
+
+  - Id                     : JsonStructure
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "JSON structure"
+    Description            : "JSON structure node in the tree"
+    Icon                   : folder
+    TransferModes          : [ None ]
+    ChildNodes             :
+      - Id                 : JsonStructure
+      - Id                 : DataPointBool
+      - Id                 : DataPointInteger
+      - Id                 : DataPointFloat
+      - Id                 : DataPointDateTime
+      - Id                 : DataPointString
+      - Id                 : DataPointBinary
+
+  - Id                     : DataPointBool
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint Bool"
+    Description            : "Boolean data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ Bool ]
+
+  - Id                     : DataPointInteger
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint Integer"
+    Description            : "Integer data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ Int32, Int64, Int16, Int8, UInt32, UInt64, UInt16, UInt8 ]
+
+  - Id                     : DataPointFloat
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint Float"
+    Description            : "Float data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ Float64, Float32 ]
+
+  - Id                     : DataPointDateTime
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint DateTime"
+    Description            : "DateTime data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ DateTime ]
+
+  - Id                     : DataPointString
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint String"
+    Description            : "String data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ String ]
+
+  - Id                     : DataPointBinary
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint Binary"
+    Description            : "Binary data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ Binary ]
+
+PropertyCategories:
+  - Id                     : Connection
+    Name                   : "Connection"
+    Description            : "Connection properties"
+
+Properties:
+  - Id          : Hostname
+    Name        : "Hostname"
+    Description : "Hostname of the Azure IoT Hub"
+    DataType    : String
+    UiControl   : TextBox
+
+  - Id          : SharedAccessSignatureKey
+    Name        : "Shared Access Signature Key"
+    Description : "Shared access signature key of the Azure IoT Hub"
+    DataType    : String
+    UiControl   : PasswordBox
+
+  - Id          : SharedAccessSignatureKeyName
+    Name        : "Shared Access Signature Key Name"
+    Description : "Shared access signature key name of the Azure IoT Hub"
+    DataType    : String
+    UiControl   : TextBox
+
+  - Id          : MaxPendingMessages
+    Name        : "MaxPendingMessages"
+    Description : "Maximum of pending messages"
+    DataType    : Int32
+    DefaultValue: 100000
+    UiControl   : NumericUpDown
+    MinValue    : 1
+
+  - Id          : BulkSize
+    Name        : "BulkSize"
+    Description : "BulkSize"
+    DataType    : Int32
+    DefaultValue: 5000
+    UiControl   : NumericUpDown
+    MinValue    : 1
+
+Icons:
+
+  - Id          : azure-iot-hub
+    Content     : PHN2ZyB2aWV3Qm94PSIwIDAgMzIgMzIiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+ZGFyay10aGVtZS9pY29uL21vbm9jaHJvbWUvMzJ4MzIvZGF0YXBvcnQvYXp1cmUvaW90LWh1Yi9saWdodDwvdGl0bGU+CiAgICA8ZyBpZD0iZGFyay10aGVtZS9pY29uL21vbm9jaHJvbWUvMzJ4MzIvZGF0YXBvcnQvYXp1cmUvaW90LWh1Yi9saWdodCIgc3Ryb2tlPSJub25lIiBmaWxsPSJub25lIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLCAwKSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8cGF0aCBkPSJNMjQuMjE1OTc3MiwyMSBDMjQuNjI5NjQxMSwyMS4wMDA1MzkgMjUuMDE4MTYyMiwyMC44MDEwNDY4IDI1LjI1OTM4NzQsMjAuNDY0MjM5MiBDMjUuNTAwNjEyNSwyMC4xMjc0MzE1IDI1LjU2NDkxMjMsMTkuNjk0Njc4MyAyNS40MzIwNzA1LDE5LjMwMjAzOTMgTDIwLjIzNDYyNDUsMy44NzUxNTI1MiBDMjAuMDU5MDk0OCwzLjM1MjU5NDUgMTkuNTcwNTU3OSwzLjAwMDQ3NDY3IDE5LjAyMDQyMzYsMyBMMTIuOTc4MTg0NCwzIEMxMi40Mjc5MTA4LDMuMDAwMzExOTYgMTEuOTM5MTc5MywzLjM1MjQ2MjM2IDExLjc2MzYwNSwzLjg3NTE1MjUyIEw2LjU2NzY3Mjk2LDE5LjMwMjc5OCBDNi40MzUxMzUxOSwxOS42OTUzNDMgNi40OTk1ODMzNywyMC4xMjc4NTUyIDYuNzQwNzcxLDIwLjQ2NDQ1OTkgQzYuOTgxOTU4NjIsMjAuODAxMDY0NyA3LjM3MDI4ODU5LDIxLjAwMDQ1NTkgNy43ODM3NjYzMywyMSBMMTEuNTM2ODg4NiwyMSBDMTIuMDg3NDQwNywyMSAxMi41NzY1NjE4LDIwLjY0Nzc5NjYgMTIuNzUyMjI1LDIwLjEyNDg0MiBMMTMuNTI1ODYxNywxNy44MzAxNzQ2IEwxNy40NDE3MzUzLDIwLjc0NjIxMTYgQzE3LjY2Mjg0NTMsMjAuOTExMDU1MyAxNy45MzEwOTMzLDIxIDE4LjIwNjY2NjgsMjEgTTE1Ljc2NTAxNzcsMTEuMDU3MzIxIEwxOC42MzM5ODM3LDE5LjU3NzQ0NDkgQzE4LjY3ODA4NzYsMTkuNzA4MDI2MiAxOC42NTY3Nzg0LDE5Ljg1MTkwMjMgMTguNTc2NzMwMSwxOS45NjQwMTI2IEMxOC40OTY2ODE4LDIwLjA3NjEyMjggMTguMzY3NjgyNCwyMC4xNDI3NTg3IDE4LjIzMDEzMzIsMjAuMTQzMDUxMSBMMTguMjA2Mjg4MywyMC4xNDMwNTExIEMxOC4xMTQ0MzMsMjAuMTQzMTg4OCAxOC4wMjQ5NzgzLDIwLjExMzY1NzkgMTcuOTUxMTg1LDIwLjA1ODgzNTcgTDEwLjU5OTM2NSwxNC41ODQ0ODU0IEwxNC40NDE0MzI4LDE0LjU4NDQ4NTQgTTE5LjQzNzUyMTMsMjAuMTQzNDI5OSBDMTkuNTM0MTIzOCwxOS44NzIzMDE3IDE5LjUzNjEyNTIsMTkuNTc2MzUxOCAxOS40NDMxOTg3LDE5LjMwMzkzNiBMMTQuMjQ5OTE2LDMuODc1MTUyNTIgTDE0LjI0NDIzODcsMy44NTkyMTkzMyBMMTkuMDIxMTgwNiwzLjg1OTIxOTMzIEMxOS4yMDQ1MDM1LDMuODU4OTAzMDIgMTkuMzY3NjAyNiwzLjk3NTgxODIxIDE5LjQyNjU0NSw0LjE0OTc5OTQ0IEwyNC42MjEzNDE2LDE5LjU3NzQ0NDkgQzI0LjY5NjkyODgsMTkuODAxNDAyNiAyNC41NzcxNTE1LDIwLjA0NDM4NSAyNC4zNTM3NDgxLDIwLjEyMDI4OTggTTQuOTA0Mjk2ODgsMjkgTDMuNzA4MDA3ODEsMjkgTDMuNzA4MDA3ODEsMjQuMDIzNDM3NSBMNC45MDQyOTY4OCwyNC4wMjM0Mzc1IEw0LjkwNDI5Njg4LDI5IFogTTUuNDQwMDM5MDYsMjcuMTE2Njk5MiBDNS40NDAwMzkwNiwyNi43NDc1NTg2IDUuNTExODE2NCwyNi40MTg4NjM5IDUuNjU1MzcxMDksMjYuMTMwNjE1MiBDNS43OTg5MjU3OCwyNS44NDIzNjY1IDYuMDA1MTQzMjMsMjUuNjIwNzY4MiA2LjI3NDAyMzQzLDI1LjQ2NTgyMDMgQzYuNTQyOTAzNjQsMjUuMzEwODcyNCA2Ljg1ODQ5NjA5LDI1LjIzMzM5ODQgNy4yMjA4MDA3OCwyNS4yMzMzOTg0IEM3Ljc3NDUxMTcxLDI1LjIzMzM5ODQgOC4yMTA4NzIzOSwyNS40MDQ4NjY1IDguNTI5ODgyODEsMjUuNzQ3ODAyNyBDOC44NDg4OTMyMywyNi4wOTA3Mzg5IDkuMDA4Mzk4NDMsMjYuNTU3MjkxNyA5LjAwODM5ODQzLDI3LjE0NzQ2MDkgTDkuMDA4Mzk4NDMsMjcuMTg4NDc2NiBDOS4wMDgzOTg0MywyNy43NjQ5NzQgOC44NDgzMjM1NiwyOC4yMjI0MTIxIDguNTI4MTczODIsMjguNTYwNzkxIEM4LjIwODAyNDA4LDI4Ljg5OTE2OTkgNy43NzQ1MTE3MSwyOS4wNjgzNTk0IDcuMjI3NjM2NzEsMjkuMDY4MzU5NCBDNi43MDEyNjk1MywyOS4wNjgzNTk0IDYuMjc4NTgwNzMsMjguOTEwNTYzMiA1Ljk1OTU3MDMxLDI4LjU5NDk3MDcgQzUuNjQwNTU5ODksMjguMjc5Mzc4MyA1LjQ2ODUyMjEzLDI3Ljg1MTU2MjUgNS40NDM0NTcwMywyNy4zMTE1MjM0IEw1LjQ0MDAzOTA2LDI3LjExNjY5OTIgWiBNNi41OTE4OTQ1MywyNy4xODg0NzY2IEM2LjU5MTg5NDUzLDI3LjUzMDI3MzQgNi42NDU0NDI3LDI3Ljc4MDkyNDUgNi43NTI1MzkwNiwyNy45NDA0Mjk3IEM2Ljg1OTYzNTQxLDI4LjA5OTkzNDkgNy4wMTgwMDEzLDI4LjE3OTY4NzUgNy4yMjc2MzY3MSwyOC4xNzk2ODc1IEM3LjYzNzc5Mjk2LDI4LjE3OTY4NzUgNy44NDc0MjgzOCwyNy44NjQwOTUxIDcuODU2NTQyOTYsMjcuMjMyOTEwMiBMNy44NTY1NDI5NiwyNy4xMTY2OTkyIEM3Ljg1NjU0Mjk2LDI2LjQ1MzYxMzMgNy42NDQ2Mjg5LDI2LjEyMjA3MDMgNy4yMjA4MDA3OCwyNi4xMjIwNzAzIEM2LjgzNTcwOTYzLDI2LjEyMjA3MDMgNi42MjcyMTM1NCwyNi40MDgwNDA0IDYuNTk1MzEyNSwyNi45Nzk5ODA1IEw2LjU5MTg5NDUzLDI3LjE4ODQ3NjYgWiBNMTMuMzc1NjgzNiwyNC45NDk3MDcgTDExLjg4MjAzMTIsMjQuOTQ5NzA3IEwxMS44ODIwMzEyLDI5IEwxMC42ODIzMjQyLDI5IEwxMC42ODIzMjQyLDI0Ljk0OTcwNyBMOS4yMTYwMTU2MiwyNC45NDk3MDcgTDkuMjE2MDE1NjIsMjQuMDIzNDM3NSBMMTMuMzc1NjgzNiwyNC4wMjM0Mzc1IEwxMy4zNzU2ODM2LDI0Ljk0OTcwNyBaIE0xOS4zNzkyOTY5LDI5IEwxOC4xODY0MjU4LDI5IEwxOC4xODY0MjU4LDI2LjkyMTg3NSBMMTYuNDE5MzM1OSwyNi45MjE4NzUgTDE2LjQxOTMzNTksMjkgTDE1LjIxOTYyODksMjkgTDE1LjIxOTYyODksMjQuMDIzNDM3NSBMMTYuNDE5MzM1OSwyNC4wMjM0Mzc1IEwxNi40MTkzMzU5LDI1Ljk5OTAyMzQgTDE4LjE4NjQyNTgsMjUuOTk5MDIzNCBMMTguMTg2NDI1OCwyNC4wMjM0Mzc1IEwxOS4zNzkyOTY5LDI0LjAyMzQzNzUgTDE5LjM3OTI5NjksMjkgWiBNMjIuMTg3OTg4MywyOC42MDAwOTc3IEMyMS45NDQxNzMyLDI4LjkxMjI3MjEgMjEuNjE0OTA4OCwyOS4wNjgzNTk0IDIxLjIwMDE5NTMsMjkuMDY4MzU5NCBDMjAuNzk0NTk2MywyOS4wNjgzNTk0IDIwLjQ4NzU0ODgsMjguOTUwNDM5NSAyMC4yNzkwNTI3LDI4LjcxNDU5OTYgQzIwLjA3MDU1NjYsMjguNDc4NzU5OCAxOS45NjYzMDg2LDI4LjEzOTgxMTIgMTkuOTY2MzA4NiwyNy42OTc3NTM5IEwxOS45NjYzMDg2LDI1LjMwMTc1NzggTDIxLjExODE2NCwyNS4zMDE3NTc4IEwyMS4xMTgxNjQsMjcuNzA0NTg5OCBDMjEuMTE4MTY0LDI4LjAyMTMyMTYgMjEuMjcxOTcyNiwyOC4xNzk2ODc1IDIxLjU3OTU4OTgsMjguMTc5Njg3NSBDMjEuODQzOTEyNywyOC4xNzk2ODc1IDIyLjAzMTkwMSwyOC4wODUxMjM3IDIyLjE0MzU1NDcsMjcuODk1OTk2MSBMMjIuMTQzNTU0NywyNS4zMDE3NTc4IEwyMy4zMDIyNDYxLDI1LjMwMTc1NzggTDIzLjMwMjI0NjEsMjkgTDIyLjIyMjE2NzksMjkgTDIyLjE4Nzk4ODMsMjguNjAwMDk3NyBaIE0yNy4yNjYyMTA5LDI3LjE4MTY0MDYgQzI3LjI2NjIxMDksMjcuNzg3NzYwNCAyNy4xNDA4ODU0LDI4LjI1Mzc0MzUgMjYuODkwMjM0NCwyOC41Nzk1ODk4IEMyNi42Mzk1ODMzLDI4LjkwNTQzNjIgMjYuMjg2MzkzMiwyOS4wNjgzNTk0IDI1LjgzMDY2NCwyOS4wNjgzNTk0IEMyNS40NTQ2ODc1LDI5LjA2ODM1OTQgMjUuMTUxNjI3NiwyOC45MTkxMDgxIDI0LjkyMTQ4NDQsMjguNjIwNjA1NSBMMjQuODczNjMyOCwyOSBMMjMuODQxNDA2MiwyOSBMMjMuODQxNDA2MiwyMy43NSBMMjQuOTkzMjYxNywyMy43NSBMMjQuOTkzMjYxNywyNS41OTkxMjExIEMyNS4yMDc0NTQ0LDI1LjM1NTMwNiAyNS40ODQzMDk5LDI1LjIzMzM5ODQgMjUuODIzODI4MSwyNS4yMzMzOTg0IEMyNi4yODQxMTQ2LDI1LjIzMzM5ODQgMjYuNjM5NTgzMywyNS4zOTg2MDAzIDI2Ljg5MDIzNDQsMjUuNzI5MDAzOSBDMjcuMTQwODg1NCwyNi4wNTk0MDc2IDI3LjI2NjIxMDksMjYuNTI0MjUxMyAyNy4yNjYyMTA5LDI3LjEyMzUzNTIgTDI3LjI2NjIxMDksMjcuMTgxNjQwNiBaIE0yNi4xMTA5Mzc1LDI3LjEwOTg2MzMgQzI2LjExMDkzNzUsMjYuNzU0Mzk0NSAyNi4wNjM2NTU2LDI2LjUwMDg5NTIgMjUuOTY5MDkxOCwyNi4zNDkzNjUyIEMyNS44NzQ1MjgsMjYuMTk3ODM1MyAyNS43MjkyNjQzLDI2LjEyMjA3MDMgMjUuNTMzMzAwOCwyNi4xMjIwNzAzIEMyNS4yNzM1MzUxLDI2LjEyMjA3MDMgMjUuMDkzNTIyMSwyNi4yMjExOTE0IDI0Ljk5MzI2MTcsMjYuNDE5NDMzNiBMMjQuOTkzMjYxNywyNy44ODkxNjAyIEMyNS4wOTEyNDM1LDI4LjA4NTEyMzcgMjUuMjczNTM1MSwyOC4xODMxMDU1IDI1LjU0MDEzNjcsMjguMTgzMTA1NSBDMjUuODExMjk1NSwyOC4xODMxMDU1IDI1Ljk4MzMzMzMsMjguMDUwOTQ0IDI2LjA1NjI1LDI3Ljc4NjYyMTEgQzI2LjA5MjcwODMsMjcuNjU2NzM4MyAyNi4xMTA5Mzc1LDI3LjQzMTE1MjMgMjYuMTEwOTM3NSwyNy4xMDk4NjMzIFoiIGlkPSJJY29uIiBmaWxsPSJjdXJyZW50Q29sb3IiPjwvcGF0aD4KICAgIDwvZz4KPC9zdmc+
+    ContentType : Base64
+
+  - Id          : device
+    Content     : PHN2ZyB2aWV3Qm94PSIwIDAgMzIgMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgIDxwYXRoIGQ9Ik0yOCA3LjV2MTdINHYtMTdoMjRabS0xIDFINXYxNWgyMnYtMTVabS01Ljc1IDguOTE3YzEuMjQzIDAgMi4yNS45NTEgMi4yNSAyLjEyNSAwIDEuMTczLTEuMDA3IDIuMTI1LTIuMjUgMi4xMjVTMTkgCiAgICAgICAgICAgIDIwLjcxNSAxOSAxOS41NDJjMC0xLjE3NCAxLjAwNy0yLjEyNSAyLjI1LTIuMTI1Wm0tNy42NS02LjczdjEwLjYyNmgtNlYxMC42ODhoNlptMTAuOCAwdjIuMTI2aC03LjJ2LTIuMTI2aDcuMloiIAogICAgICAgICAgICBmaWxsPSJjdXJyZW50Q29sb3IiIGZpbGwtcnVsZT0iZXZlbm9kZCI+CiAgIDwvcGF0aD4KPC9zdmc+
+    ContentType : Base64

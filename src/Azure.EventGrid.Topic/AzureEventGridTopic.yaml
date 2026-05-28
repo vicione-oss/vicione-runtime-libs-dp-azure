@@ -1,0 +1,188 @@
+Common:
+  Target       : DataPort
+  ContentType  : Rules
+  Version      : 0.32.0
+  Date         : 2026-05-11
+  Description  : "Azure EventGrid Topic DataPort"
+  Author       : "ifm software gmbh"
+  MetadataType : YAML
+  Namespace    : "ViciOne.DataPort.Azure.EventGrid.Topic"
+
+Root:
+  Id                       : "AzureEventGridTopicDataPort"
+  Name                     : "Azure EventGrid Topic"
+  Description              : "DataPort for Azure EventGrid Topic"
+  Icon                     : azure-eventgrid
+  ChildNodes               :
+    - Id                   : AzureEventGridTopicInstance
+      MaxInstances         : 16
+
+Nodes:
+  - Id                     : AzureEventGridTopicInstance
+    Type                   : DataPortNode
+    Name                   : "Instance"
+    Description            : "Azure EventGrid Topic instance"
+    MetadataLength         : 0
+    Icon                   : server
+    TransferDirections     : [ Outbound ]
+    ChildNodes             :
+      - Id                 : EventGridEvent
+        MaxInstances       : 1
+    PropertyCategories     :
+      - Id                 : Connection
+        Properties         :
+          - Id             : TopicEndpoint
+            Required       : true
+          - Id             : AccessKey
+            Required       : true
+          - Id             : MaxPendingMessages
+          - Id             : BulkSize
+
+  - Id                     : EventGridEvent
+    MappingId              : EventGridEvent
+    Type                   : DataPortTreeNode
+    Name                   : "EventGridEvent"
+    Description            : "EventGridEvent"
+    Icon                   : broker
+    TransferModes          : [ OnChange, Periodic, None ]
+    ChildNodes             :
+      - Id                 : JsonStructure
+      - Id                 : DataPointBool
+      - Id                 : DataPointInteger
+      - Id                 : DataPointFloat
+      - Id                 : DataPointDateTime
+      - Id                 : DataPointString
+      - Id                 : DataPointBinary
+    PropertyCategories     :
+      - Id                 : Event
+        Properties         :
+          - Id             : DataVersion
+            Required       : true
+          - Id             : EventType
+            Required       : true
+
+  - Id                     : JsonStructure
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "JSON structure"
+    Description            : "JSON structure node in the tree"
+    Icon                   : folder
+    TransferModes          : [ None ]
+    ChildNodes             :
+      - Id                 : JsonStructure
+      - Id                 : DataPointBool
+      - Id                 : DataPointInteger
+      - Id                 : DataPointFloat
+      - Id                 : DataPointDateTime
+      - Id                 : DataPointString
+      - Id                 : DataPointBinary
+
+  - Id                     : DataPointBool
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint Bool"
+    Description            : "Boolean data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ Bool ]
+
+  - Id                     : DataPointInteger
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint Integer"
+    Description            : "Integer data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ Int32, Int64, Int16, Int8, UInt32, UInt64, UInt16, UInt8 ]
+
+  - Id                     : DataPointFloat
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint Float"
+    Description            : "Float data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ Float64, Float32 ]
+
+  - Id                     : DataPointDateTime
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint DateTime"
+    Description            : "DateTime data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ DateTime ]
+
+  - Id                     : DataPointString
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint String"
+    Description            : "String data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ String ]
+
+  - Id                     : DataPointBinary
+    MappingId              : JsonStructure
+    Type                   : DataPortTreeNode
+    Name                   : "DataPoint Binary"
+    Description            : "Binary data point in the tree"
+    Icon                   : datapoint
+    TransferModes          : [ None ]
+    DataTypes              : [ Binary ]
+
+PropertyCategories:
+  - Id          : Connection
+    Name        : "Connection"
+    Description : "Connection properties"
+
+  - Id          : Event
+    Name        : "Event"
+    Description : "Event properties"
+
+Properties:
+  - Id          : TopicEndpoint
+    Name        : "Topic Endpoint"
+    Description : "Endpoint of the Topic"
+    DataType    : String
+    UiControl   : TextBox
+
+  - Id          : AccessKey
+    Name        : "Topic Access Key"
+    Description : "Access Key of the Topic"
+    DataType    : String
+    UiControl   : TextBox
+
+  - Id          : EventType
+    Name        : "EventType"
+    Description : "EventType of the Topic Subject"
+    DataType    : String
+    UiControl   : TextBox
+
+  - Id          : DataVersion
+    Name        : "DataVersion"
+    Description : "DataVersion of the Topic Subject"
+    DataType    : String
+    UiControl   : TextBox
+
+  - Id          : MaxPendingMessages
+    Name        : "MaxPendingMessages"
+    Description : "Maximum of pending messages"
+    DataType    : Int32
+    DefaultValue: 100000
+    UiControl   : NumericUpDown
+    MinValue    : 1
+
+  - Id          : BulkSize
+    Name        : "BulkSize"
+    Description : "BulkSize"
+    DataType    : Int32
+    DefaultValue: 5000
+    UiControl   : NumericUpDown
+    MinValue    : 1
+
+Icons:
+
+  - Id          : azure-eventgrid
+    Content     : PHN2ZyB2aWV3Qm94PSIwIDAgMzIgMzIiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+ZGFyay10aGVtZS9pY29uL21vbm9jaHJvbWUvMzJ4MzIvZGF0YXBvcnQvYXp1cmUvZXZlbnQtZ3JpZC9saWdodDwvdGl0bGU+CiAgICA8ZyBpZD0iZGFyay10aGVtZS9pY29uL21vbm9jaHJvbWUvMzJ4MzIvZGF0YXBvcnQvYXp1cmUvZXZlbnQtZ3JpZC9saWdodCIgc3Ryb2tlPSJub25lIiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPgogICAgICAgIDxwYXRoIGQ9Ik0yNC4yMTU5NzcyLDIxIEMyNC42Mjk2NDExLDIxLjAwMDUzOSAyNS4wMTgxNjIyLDIwLjgwMTA0NjggMjUuMjU5Mzg3NCwyMC40NjQyMzkyIEMyNS41MDA2MTI1LDIwLjEyNzQzMTUgMjUuNTY0OTEyMywxOS42OTQ2NzgzIDI1LjQzMjA3MDUsMTkuMzAyMDM5MyBMMjAuMjM0NjI0NSwzLjg3NTE1MjUyIEMyMC4wNTkwOTQ4LDMuMzUyNTk0NSAxOS41NzA1NTc5LDMuMDAwNDc0NjcgMTkuMDIwNDIzNiwzIEwxMi45NzgxODQ0LDMgQzEyLjQyNzkxMDgsMy4wMDAzMTE5NiAxMS45MzkxNzkzLDMuMzUyNDYyMzYgMTEuNzYzNjA1LDMuODc1MTUyNTIgTDYuNTY3NjcyOTYsMTkuMzAyNzk4IEM2LjQzNTEzNTE5LDE5LjY5NTM0MyA2LjQ5OTU4MzM3LDIwLjEyNzg1NTIgNi43NDA3NzEsMjAuNDY0NDU5OSBDNi45ODE5NTg2MiwyMC44MDEwNjQ3IDcuMzcwMjg4NTksMjEuMDAwNDU1OSA3Ljc4Mzc2NjMzLDIxIEwxMS41MzY4ODg2LDIxIEMxMi4wODc0NDA3LDIxIDEyLjU3NjU2MTgsMjAuNjQ3Nzk2NiAxMi43NTIyMjUsMjAuMTI0ODQyIEwxMy41MjU4NjE3LDE3LjgzMDE3NDYgTDE3LjQ0MTczNTMsMjAuNzQ2MjExNiBDMTcuNjYyODQ1MywyMC45MTEwNTUzIDE3LjkzMTA5MzMsMjEgMTguMjA2NjY2OCwyMSBNMTUuNzY1MDE3NywxMS4wNTczMjEgTDE4LjYzMzk4MzcsMTkuNTc3NDQ0OSBDMTguNjc4MDg3NiwxOS43MDgwMjYyIDE4LjY1Njc3ODQsMTkuODUxOTAyMyAxOC41NzY3MzAxLDE5Ljk2NDAxMjYgQzE4LjQ5NjY4MTgsMjAuMDc2MTIyOCAxOC4zNjc2ODI0LDIwLjE0Mjc1ODcgMTguMjMwMTMzMiwyMC4xNDMwNTExIEwxOC4yMDYyODgzLDIwLjE0MzA1MTEgQzE4LjExNDQzMywyMC4xNDMxODg4IDE4LjAyNDk3ODMsMjAuMTEzNjU3OSAxNy45NTExODUsMjAuMDU4ODM1NyBMMTAuNTk5MzY1LDE0LjU4NDQ4NTQgTDE0LjQ0MTQzMjgsMTQuNTg0NDg1NCBNMTkuNDM3NTIxMywyMC4xNDM0Mjk5IEMxOS41MzQxMjM4LDE5Ljg3MjMwMTcgMTkuNTM2MTI1MiwxOS41NzYzNTE4IDE5LjQ0MzE5ODcsMTkuMzAzOTM2IEwxNC4yNDk5MTYsMy44NzUxNTI1MiBMMTQuMjQ0MjM4NywzLjg1OTIxOTMzIEwxOS4wMjExODA2LDMuODU5MjE5MzMgQzE5LjIwNDUwMzUsMy44NTg5MDMwMiAxOS4zNjc2MDI2LDMuOTc1ODE4MjEgMTkuNDI2NTQ1LDQuMTQ5Nzk5NDQgTDI0LjYyMTM0MTYsMTkuNTc3NDQ0OSBDMjQuNjk2OTI4OCwxOS44MDE0MDI2IDI0LjU3NzE1MTUsMjAuMDQ0Mzg1IDI0LjM1Mzc0ODEsMjAuMTIwMjg5OCBNMy45MzUwNTg1OSwyNC4wMjM0Mzc1IEwzLjkzNTA1ODU5LDI0Ljk0OTcwNyBMMS42OTk3MDcwMywyNC45NDk3MDcgTDEuNjk5NzA3MDMsMjUuOTk5MDIzNCBMMy41ODY0MjU3OCwyNS45OTkwMjM0IEwzLjU4NjQyNTc4LDI2Ljg5MTExMzMgTDEuNjk5NzA3MDMsMjYuODkxMTEzMyBMMS42OTk3MDcwMywyOC4wNzcxNDg0IEwzLjkyODIyMjY2LDI4LjA3NzE0ODQgTDMuOTI4MjIyNjYsMjkgTDAuNSwyOSBMMC41LDI0LjAyMzQzNzUgTDMuOTM1MDU4NTksMjQuMDIzNDM3NSBaIE01LjA3NTc4MTI1LDI1LjMwMTc1NzggTDUuNjUsMjcuNjI5Mzk0NSBMNi4yMzQ0NzI2NSwyNS4zMDE3NTc4IEw3LjQ0Nzg1MTU2LDI1LjMwMTc1NzggTDYuMjQxMzA4NTksMjkgTDUuMDY1NTI3MzQsMjkgTDMuODU4OTg0MzcsMjUuMzAxNzU3OCBMNS4wNzU3ODEyNSwyNS4zMDE3NTc4IFogTTkuNDM2MjMwNDYsMjkuMDY4MzU5NCBDOC44Njg4NDc2NSwyOS4wNjgzNTk0IDguNDA5NzAwNTEsMjguODk5MTY5OSA4LjA1ODc4OTA1LDI4LjU2MDc5MSBDNy43MDc4Nzc2LDI4LjIyMjQxMjEgNy41MzI0MjE4NywyNy43ODIwNjM4IDcuNTMyNDIxODcsMjcuMjM5NzQ2MSBMNy41MzI0MjE4NywyNy4xNDQwNDMgQzcuNTMyNDIxODcsMjYuNzY1Nzg3OCA3LjYwMjQ5MDIzLDI2LjQzMTk2NjEgNy43NDI2MjY5NSwyNi4xNDI1NzgxIEM3Ljg4Mjc2MzY2LDI1Ljg1MzE5MDEgOC4wODcyNzIxMywyNS42MjkzMTMyIDguMzU2MTUyMzQsMjUuNDcwOTQ3MyBDOC42MjUwMzI1NCwyNS4zMTI1ODE0IDguOTQ0MDQyOTYsMjUuMjMzMzk4NCA5LjMxMzE4MzU5LDI1LjIzMzM5ODQgQzkuODMyNzE0ODQsMjUuMjMzMzk4NCAxMC4yNDI4NzExLDI1LjM5NDYxMjYgMTAuNTQzNjUyMywyNS43MTcwNDEgQzEwLjg0NDQzMzYsMjYuMDM5NDY5NCAxMC45OTQ4MjQyLDI2LjQ4ODkzMjMgMTAuOTk0ODI0MiwyNy4wNjU0Mjk3IEwxMC45OTQ4MjQyLDI3LjUxMzE4MzYgTDguNzA0Nzg1MTUsMjcuNTEzMTgzNiBDOC43NDU4MDA3NywyNy43MjA1NDA0IDguODM1ODA3MjgsMjcuODgzNDYzNSA4Ljk3NDgwNDY4LDI4LjAwMTk1MzEgQzkuMTEzODAyMDgsMjguMTIwNDQyNyA5LjI5MzgxNTEsMjguMTc5Njg3NSA5LjUxNDg0Mzc0LDI4LjE3OTY4NzUgQzkuODc5NDI3MDgsMjguMTc5Njg3NSAxMC4xNjQyNTc4LDI4LjA1MjA4MzMgMTAuMzY5MzM1OSwyNy43OTY4NzUgTDEwLjg5NTcwMzEsMjguNDE4OTQ1MyBDMTAuNzUyMTQ4NCwyOC42MTcxODc1IDEwLjU0ODc3OTMsMjguNzc0OTgzNyAxMC4yODU1OTU3LDI4Ljg5MjMzNCBDMTAuMDIyNDEyMSwyOS4wMDk2ODQyIDkuNzM5MjkwMzYsMjkuMDY4MzU5NCA5LjQzNjIzMDQ2LDI5LjA2ODM1OTQgWiBNOS4zMDYzNDc2NSwyNi4xMjIwNzAzIEM4Ljk2OTEwODA2LDI2LjEyMjA3MDMgOC43Njg1ODcyMywyNi4zNDUzNzc2IDguNzA0Nzg1MTUsMjYuNzkxOTkyMiBMOS44NjY4OTQ1MiwyNi43OTE5OTIyIEw5Ljg2Njg5NDUyLDI2LjcwMzEyNSBDOS44NzE0NTE4MSwyNi41MTg1NTQ3IDkuODI0NzM5NTgsMjYuMzc1NTY5NyA5LjcyNjc1NzgsMjYuMjc0MTY5OSBDOS42Mjg3NzYwMywyNi4xNzI3NzAyIDkuNDg4NjM5MzEsMjYuMTIyMDcwMyA5LjMwNjM0NzY1LDI2LjEyMjA3MDMgWiBNMTIuNDE1ODIwMywyNS4zMDE3NTc4IEwxMi40NTM0MTgsMjUuNzM1ODM5OCBDMTIuNzA4NjI2MywyNS40MDA4Nzg5IDEzLjA2MDY3NzEsMjUuMjMzMzk4NCAxMy41MDk1NzAzLDI1LjIzMzM5ODQgQzEzLjg5NDY2MTQsMjUuMjMzMzk4NCAxNC4xODIzNDA1LDI1LjM0ODQ3MDEgMTQuMzcyNjA3NCwyNS41Nzg2MTMzIEMxNC41NjI4NzQzLDI1LjgwODc1NjUgMTQuNjYxNDI1OCwyNi4xNTUxMTA3IDE0LjY2ODI2MTcsMjYuNjE3Njc1OCBMMTQuNjY4MjYxNywyOSBMMTMuNTEyOTg4MywyOSBMMTMuNTEyOTg4MywyNi42NjU1MjczIEMxMy41MTI5ODgzLDI2LjQ3ODY3ODQgMTMuNDc1MzkwNiwyNi4zNDEzOSAxMy40MDAxOTUzLDI2LjI1MzY2MjEgQzEzLjMyNSwyNi4xNjU5MzQyIDEzLjE4ODI4MTIsMjYuMTIyMDcwMyAxMi45OTAwMzkxLDI2LjEyMjA3MDMgQzEyLjc2NDQ1MzEsMjYuMTIyMDcwMyAxMi41OTY5NzI2LDI2LjIxMDkzNzUgMTIuNDg3NTk3NiwyNi4zODg2NzE5IEwxMi40ODc1OTc2LDI5IEwxMS4zMzU3NDIyLDI5IEwxMS4zMzU3NDIyLDI1LjMwMTc1NzggTDEyLjQxNTgyMDMsMjUuMzAxNzU3OCBaIE0xNi41NDcyNjU2LDI0LjM4MjMyNDIgTDE2LjU0NzI2NTYsMjUuMzAxNzU3OCBMMTcuMTU1NjY0LDI1LjMwMTc1NzggTDE3LjE1NTY2NCwyNi4xMDE1NjI1IEwxNi41NDcyNjU2LDI2LjEwMTU2MjUgTDE2LjU0NzI2NTYsMjcuNzkzNDU3IEMxNi41NDcyNjU2LDI3LjkzMjQ1NDQgMTYuNTcyMzMwNywyOC4wMjkyOTY5IDE2LjYyMjQ2MDksMjguMDgzOTg0NCBDMTYuNjcyNTkxMSwyOC4xMzg2NzE5IDE2Ljc3MTcxMjIsMjguMTY2MDE1NiAxNi45MTk4MjQyLDI4LjE2NjAxNTYgQzE3LjAzMzc1NjUsMjguMTY2MDE1NiAxNy4xMjk0NTk2LDI4LjE1OTE3OTcgMTcuMjA2OTMzNiwyOC4xNDU1MDc4IEwxNy4yMDY5MzM2LDI4Ljk2OTIzODMgQzE2Ljk5OTU3NjgsMjkuMDM1MzE5IDE2Ljc4MzEwNTUsMjkuMDY4MzU5NCAxNi41NTc1MTk1LDI5LjA2ODM1OTQgQzE2LjE2MTAzNTEsMjkuMDY4MzU5NCAxNS44NjgyMjkyLDI4Ljk3NDkzNDkgMTUuNjc5MTAxNSwyOC43ODgwODU5IEMxNS40ODk5NzM5LDI4LjYwMTIzNyAxNS4zOTU0MTAxLDI4LjMxNzU0NTYgMTUuMzk1NDEwMSwyNy45MzcwMTE3IEwxNS4zOTU0MTAxLDI2LjEwMTU2MjUgTDE0LjkyMzczMDUsMjYuMTAxNTYyNSBMMTQuOTIzNzMwNSwyNS4zMDE3NTc4IEwxNS4zOTU0MTAxLDI1LjMwMTc1NzggTDE1LjM5NTQxMDEsMjQuMzgyMzI0MiBMMTYuNTQ3MjY1NiwyNC4zODIzMjQyIFogTTIzLjI3ODkwNjIsMjguMzg0NzY1NiBDMjMuMDk0MzM1OSwyOC41ODk4NDM4IDIyLjgyNDMxNjQsMjguNzU1MDQ1NiAyMi40Njg4NDc2LDI4Ljg4MDM3MTEgQzIyLjExMzM3ODksMjkuMDA1Njk2NiAyMS43MjM3MzA0LDI5LjA2ODM1OTQgMjEuMjk5OTAyMywyOS4wNjgzNTk0IEMyMC42NDgyMDk2LDI5LjA2ODM1OTQgMjAuMTI3NTM5LDI4Ljg2ODk3NzkgMTkuNzM3ODkwNiwyOC40NzAyMTQ4IEMxOS4zNDgyNDIyLDI4LjA3MTQ1MTggMTkuMTM5NzQ2MSwyNy41MTY2MDE2IDE5LjExMjQwMjMsMjYuODA1NjY0MSBMMTkuMTA4OTg0NCwyNi4zNzUgQzE5LjEwODk4NDQsMjUuODg1MDkxMSAxOS4xOTU1NzI5LDI1LjQ1NzI3NTQgMTkuMzY4NzUsMjUuMDkxNTUyNyBDMTkuNTQxOTI3MSwyNC43MjU4MzAxIDE5Ljc4OTcyOTgsMjQuNDQ0NDE3MyAyMC4xMTIxNTgyLDI0LjI0NzMxNDUgQzIwLjQzNDU4NjYsMjQuMDUwMjExNiAyMC44MDc3MTQ4LDIzLjk1MTY2MDIgMjEuMjMxNTQyOSwyMy45NTE2NjAyIEMyMS44NTEzMzQ2LDIzLjk1MTY2MDIgMjIuMzMyNjk4NSwyNC4wOTM1MDU5IDIyLjY3NTYzNDcsMjQuMzc3MTk3MyBDMjMuMDE4NTcwOSwyNC42NjA4ODg3IDIzLjIxODUyMjEsMjUuMDg0MTQ3MSAyMy4yNzU0ODgzLDI1LjY0Njk3MjcgTDIyLjEyMDIxNDgsMjUuNjQ2OTcyNyBDMjIuMDc5MTk5MiwyNS4zNjg5Nzc5IDIxLjk5MDMzMiwyNS4xNzA3MzU3IDIxLjg1MzYxMzMsMjUuMDUyMjQ2MSBDMjEuNzE2ODk0NSwyNC45MzM3NTY1IDIxLjUyMzIwOTYsMjQuODc0NTExNyAyMS4yNzI1NTg2LDI0Ljg3NDUxMTcgQzIwLjk3MTc3NzMsMjQuODc0NTExNyAyMC43MzkzNTU0LDI1LjAwMjExNTkgMjAuNTc1MjkyOSwyNS4yNTczMjQyIEMyMC40MTEyMzA0LDI1LjUxMjUzMjYgMjAuMzI4MDU5OSwyNS44NzcxMTU5IDIwLjMyNTc4MTIsMjYuMzUxMDc0MiBMMjAuMzI1NzgxMiwyNi42NTE4NTU1IEMyMC4zMjU3ODEyLDI3LjE0ODYwMDMgMjAuNDEwNjYwOCwyNy41MjE3Mjg1IDIwLjU4MDQxOTksMjcuNzcxMjQwMiBDMjAuNzUwMTc5LDI4LjAyMDc1MiAyMS4wMTczNTAyLDI4LjE0NTUwNzggMjEuMzgxOTMzNiwyOC4xNDU1MDc4IEMyMS42OTQxMDgsMjguMTQ1NTA3OCAyMS45MjY1Mjk5LDI4LjA3NjAwOTEgMjIuMDc5MTk5MiwyNy45MzcwMTE3IEwyMi4wNzkxOTkyLDI3LjE2NDU1MDggTDIxLjI0NTIxNDgsMjcuMTY0NTUwOCBMMjEuMjQ1MjE0OCwyNi4zNDA4MjAzIEwyMy4yNzg5MDYyLDI2LjM0MDgyMDMgTDIzLjI3ODkwNjIsMjguMzg0NzY1NiBaIE0yNi4wNjAyNTM5LDI2LjM0NDIzODMgTDI1LjY4MDg1OTMsMjYuMzE2ODk0NSBDMjUuMzE4NTU0NywyNi4zMTY4OTQ1IDI1LjA4NjEzMjgsMjYuNDMwODI2OCAyNC45ODM1OTM3LDI2LjY1ODY5MTQgTDI0Ljk4MzU5MzcsMjkgTDIzLjgzMTczODMsMjkgTDIzLjgzMTczODMsMjUuMzAxNzU3OCBMMjQuOTExODE2NCwyNS4zMDE3NTc4IEwyNC45NDk0MTQsMjUuNzc2ODU1NSBDMjUuMTQzMDk4OSwyNS40MTQ1NTA4IDI1LjQxMzExODUsMjUuMjMzMzk4NCAyNS43NTk0NzI2LDI1LjIzMzM5ODQgQzI1Ljg4MjUxOTUsMjUuMjMzMzk4NCAyNS45ODk2MTU5LDI1LjI0NzA3MDMgMjYuMDgwNzYxNywyNS4yNzQ0MTQxIEwyNi4wNjAyNTM5LDI2LjM0NDIzODMgWiBNMjcuNTkwNjI1LDI5IEwyNi40MzUzNTE1LDI5IEwyNi40MzUzNTE1LDI1LjMwMTc1NzggTDI3LjU5MDYyNSwyNS4zMDE3NTc4IEwyNy41OTA2MjUsMjkgWiBNMjYuMzY2OTkyMiwyNC4zNDgxNDQ1IEMyNi4zNjY5OTIyLDI0LjE4NDA4MiAyNi40MjYyMzY5LDI0LjA0OTY0MTkgMjYuNTQ0NzI2NSwyMy45NDQ4MjQyIEMyNi42NjMyMTYxLDIzLjg0MDAwNjUgMjYuODE3MDI0NywyMy43ODc1OTc3IDI3LjAwNjE1MjMsMjMuNzg3NTk3NyBDMjcuMTk1Mjc5OSwyMy43ODc1OTc3IDI3LjM0OTA4ODUsMjMuODQwMDA2NSAyNy40Njc1NzgxLDIzLjk0NDgyNDIgQzI3LjU4NjA2NzcsMjQuMDQ5NjQxOSAyNy42NDUzMTI1LDI0LjE4NDA4MiAyNy42NDUzMTI1LDI0LjM0ODE0NDUgQzI3LjY0NTMxMjUsMjQuNTEyMjA3IDI3LjU4NjA2NzcsMjQuNjQ2NjQ3MSAyNy40Njc1NzgxLDI0Ljc1MTQ2NDggQzI3LjM0OTA4ODUsMjQuODU2MjgyNiAyNy4xOTUyNzk5LDI0LjkwODY5MTQgMjcuMDA2MTUyMywyNC45MDg2OTE0IEMyNi44MTcwMjQ3LDI0LjkwODY5MTQgMjYuNjYzMjE2MSwyNC44NTYyODI2IDI2LjU0NDcyNjUsMjQuNzUxNDY0OCBDMjYuNDI2MjM2OSwyNC42NDY2NDcxIDI2LjM2Njk5MjIsMjQuNTEyMjA3IDI2LjM2Njk5MjIsMjQuMzQ4MTQ0NSBaIE0yOC4wNTQ1ODk4LDI3LjEyMzUzNTIgQzI4LjA1NDU4OTgsMjYuNTM3OTIzMiAyOC4xODEwNTQ3LDI2LjA3NjQ5NzQgMjguNDMzOTg0MywyNS43MzkyNTc4IEMyOC42ODY5MTQsMjUuNDAyMDE4MiAyOS4wNDAxMDQxLDI1LjIzMzM5ODQgMjkuNDkzNTU0NywyNS4yMzMzOTg0IEMyOS44MjM5NTgzLDI1LjIzMzM5ODQgMzAuMTAxOTUzMSwyNS4zNjMyODEyIDMwLjMyNzUzOSwyNS42MjMwNDY5IEwzMC4zMjc1MzksMjMuNzUgTDMxLjQ4MjgxMjUsMjMuNzUgTDMxLjQ4MjgxMjUsMjkgTDMwLjQ0NzE2NzksMjkgTDMwLjM4OTA2MjUsMjguNjAzNTE1NiBDMzAuMTUyMDgzMywyOC45MTM0MTE1IDI5Ljg1MTMwMiwyOS4wNjgzNTk0IDI5LjQ4NjcxODcsMjkuMDY4MzU5NCBDMjkuMDQ2OTQwMSwyOS4wNjgzNTk0IDI4LjY5ODMwNzMsMjguODk5NzM5NiAyOC40NDA4MjAzLDI4LjU2MjUgQzI4LjE4MzMzMzMsMjguMjI1MjYwNCAyOC4wNTQ1ODk4LDI3Ljc0NTYwNTUgMjguMDU0NTg5OCwyNy4xMjM1MzUyIFogTTI5LjIwNjQ0NTMsMjcuMTk1MzEyNSBDMjkuMjA2NDQ1MywyNy44NTE1NjI1IDI5LjM5Nzg1MTUsMjguMTc5Njg3NSAyOS43ODA2NjQsMjguMTc5Njg3NSBDMzAuMDM1ODcyNCwyOC4xNzk2ODc1IDMwLjIxODE2NCwyOC4wNzI1OTExIDMwLjMyNzUzOSwyNy44NTgzOTg0IEwzMC4zMjc1MzksMjYuNDUwMTk1MyBDMzAuMjIyNzIxMywyNi4yMzE0NDUzIDMwLjA0MjcwODMsMjYuMTIyMDcwMyAyOS43ODc1LDI2LjEyMjA3MDMgQzI5LjQzMjAzMTIsMjYuMTIyMDcwMyAyOS4yMzk0ODU2LDI2LjQwOTE3OTcgMjkuMjA5ODYzMiwyNi45ODMzOTg0IEwyOS4yMDY0NDUzLDI3LjE5NTMxMjUgWiIgaWQ9Ikljb24iIGZpbGw9ImN1cnJlbnRDb2xvciI+PC9wYXRoPgogICAgPC9nPgo8L3N2Zz4=
+    ContentType : Base64

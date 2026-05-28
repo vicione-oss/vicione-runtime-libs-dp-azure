@@ -1,0 +1,5 @@
+﻿{
+    "Name": "ViciOne.Suite.DataPort.Azure.EventGrid.Topic",
+    "Version": "__VERSION__",
+    "MinCoreVersion": "__MIN_CORE_VERSION__"
+}

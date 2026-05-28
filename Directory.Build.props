@@ -1,0 +1,68 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Properties for all projects in the repo -->
+  <PropertyGroup>
+    <!-- General information -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers Condition="$(MSBuildProjectDirectory.Contains('src'))">linux-x64;linux-arm64;win-x64</RuntimeIdentifiers>
+    <Nullable>enable</Nullable>
+    <Description>-</Description>
+    <Product>ViciOne</Product>
+    <Company>ifm software gmbh</Company>
+    <Year>$([System.DateTime]::Now.Year)</Year>
+    <Copyright>Copyright © $(Company) $(Year)</Copyright>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
+
+    <!-- Code quality -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Required for EnforceCodeStyleInBuild and NuGet packages -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- NuGet lock file -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+    <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+    <DisableImplicitLibraryPacksFolder>true</DisableImplicitLibraryPacksFolder>
+  </PropertyGroup>
+
+  <!-- NuGet packages publish information -->
+  <PropertyGroup>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://gitlab.com/vicione-oss/vicione/runtime-libs/dp-azure</PackageProjectUrl>
+    <Authors>$(Company)</Authors>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MsBuildThisFileDirectory)\LICENSE.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <!-- Properties for source projects -->
+  <ItemGroup Condition="$(MSBuildProjectDirectory.Contains('src'))">
+    <InternalsVisibleTo Include="$(MSBuildProjectName).Tests" />
+    <InternalsVisibleTo Include="Benchmarks" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('src'))">
+    <!-- Suppress documentation of public API -->
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- Properties for test projects -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests')) And $(MSBuildProjectDirectory.Contains('tests'))">
+    <!-- Suppress documentation of public API -->
+    <NoWarn>CS1591</NoWarn>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>true</IsPublishable>
+    <!-- Mcrosoft Testing Platform command line experience -->
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  </PropertyGroup>
+
+  <!-- Properties for sample projects -->
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('samples'))">
+    <!-- Suppress documentation of public API -->
+    <NoWarn>CS1591</NoWarn>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>true</IsPublishable>
+  </PropertyGroup>
+</Project>
