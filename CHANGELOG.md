@@ -2,6 +2,10 @@
 
 ## 1.0.0 - Unreleased
 
+### Changed
+
+- Overhaul `IoT Hub` and `EventGrid` icon in yaml file
+
 ## 0.32.0 - 2026-05-11
 
 ### Added
