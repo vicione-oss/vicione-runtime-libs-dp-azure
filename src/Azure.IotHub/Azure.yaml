@@ -1,4 +1,4 @@
-Common:
+﻿Common:
   Target       : DataPort                                                                          # required: Id String to identify the target of the file
   ContentType  : Rules                                                                             # required: Id String to identify the content of the file
   Version      : 0.32.0                                                                            # required: Version of the file
@@ -25,6 +25,10 @@ Nodes:
     MetadataLength         : 0
     Icon                   : server
     TransferDirections     : [ Outbound, Inbound ]
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Message            : "Instance name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
     ChildNodes             :
       - Id                 : Device
         Required           : true
@@ -47,6 +51,10 @@ Nodes:
     Name                   : "Device"
     Description            : "Azure IoT Hub device"
     Icon                   : device
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[a-zA-Z0-9\-:.+%_#*?!(),=@;$'']{1,128}'
+        Message            : "Device ID must be 1-128 characters and can only contain alphanumerics and -:.+%_#*?!(),=@;$' characters."
     ChildNodes             :
       - Id                 : Telemetry
         MaxInstances       : 1
@@ -126,6 +134,10 @@ Nodes:
     Description            : "JSON structure node in the tree"
     Icon                   : folder
     TransferModes          : [ None ]
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Message            : "JSON structure name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
     ChildNodes             :
       - Id                 : JsonStructure
       - Id                 : DataPointBool
@@ -143,6 +155,10 @@ Nodes:
     Icon                   : datapoint
     TransferModes          : [ None ]
     DataTypes              : [ Bool ]
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointInteger
     MappingId              : JsonStructure
@@ -152,6 +168,10 @@ Nodes:
     Icon                   : datapoint
     TransferModes          : [ None ]
     DataTypes              : [ Int32, Int64, Int16, Int8, UInt32, UInt64, UInt16, UInt8 ]
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointFloat
     MappingId              : JsonStructure
@@ -161,6 +181,10 @@ Nodes:
     Icon                   : datapoint
     TransferModes          : [ None ]
     DataTypes              : [ Float64, Float32 ]
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointDateTime
     MappingId              : JsonStructure
@@ -170,6 +194,10 @@ Nodes:
     Icon                   : datapoint
     TransferModes          : [ None ]
     DataTypes              : [ DateTime ]
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointString
     MappingId              : JsonStructure
@@ -179,6 +207,10 @@ Nodes:
     Icon                   : datapoint
     TransferModes          : [ None ]
     DataTypes              : [ String ]
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointBinary
     MappingId              : JsonStructure
@@ -188,6 +220,10 @@ Nodes:
     Icon                   : datapoint
     TransferModes          : [ None ]
     DataTypes              : [ Binary ]
+    NameValidations        :
+      - Type               : Regex
+        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
 PropertyCategories:
   - Id                     : Connection
