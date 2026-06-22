@@ -88,14 +88,13 @@ include:
   - project: 'vicione-oss/tooling/ci-templates'
     file: '/project/v1/dotnet.yml'
 
-
 Push IoT Hub binaries:
   extends: .dotnet-release-raw-rids
   stage: publish
   rules:
     - <<: *rule_tag
       variables:
-        SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite'
+        SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
     - *rule_default_branch_manual
     - *rule_mr_manual
     - *rule_web_manual
@@ -121,7 +120,7 @@ Push EventGrid binaries:
   rules:
     - <<: *rule_tag_manual
       variables:
-        SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite'
+        SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
     - *rule_default_branch_manual
     - *rule_mr_manual
     - *rule_web_manual
@@ -140,3 +139,10 @@ Push EventGrid binaries:
     - dotnet nuget update source JFrogViciOne --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
   after_script:
     - !reference [ .push-metadata ]
+
+Publish binaries:
+  extends: .dotnet-release-public
+  stage: publish
+  needs:
+    - Push IoT Hub binaries
+    - Push EventGrid binaries
