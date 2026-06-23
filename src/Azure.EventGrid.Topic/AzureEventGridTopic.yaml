@@ -27,7 +27,7 @@ Nodes:
     TransferDirections     : [ Outbound ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "Instance name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
     ChildNodes             :
       - Id                 : EventGridEvent
@@ -51,7 +51,7 @@ Nodes:
     TransferModes          : [ OnChange, Periodic, None ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "EventGridEvent name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
     ChildNodes             :
       - Id                 : JsonStructure
@@ -78,7 +78,7 @@ Nodes:
     TransferModes          : [ None ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "JSON structure name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
     ChildNodes             :
       - Id                 : JsonStructure
@@ -99,7 +99,7 @@ Nodes:
     DataTypes              : [ Bool ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointInteger
@@ -112,7 +112,7 @@ Nodes:
     DataTypes              : [ Int32, Int64, Int16, Int8, UInt32, UInt64, UInt16, UInt8 ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointFloat
@@ -125,7 +125,7 @@ Nodes:
     DataTypes              : [ Float64, Float32 ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointDateTime
@@ -138,7 +138,7 @@ Nodes:
     DataTypes              : [ DateTime ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointString
@@ -151,7 +151,7 @@ Nodes:
     DataTypes              : [ String ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
   - Id                     : DataPointBinary
@@ -164,7 +164,7 @@ Nodes:
     DataTypes              : [ Binary ]
     NameValidations        :
       - Type               : Regex
-        Pattern            : '[^\x00-\x1f\x7f]{1,128}'
+        Pattern            : '^[^\x00-\x1f\x7f]{1,128}$'
         Message            : "DataPoint name cannot contain control characters and can not be longer than 128 characters or shorter than 1 character."
 
 PropertyCategories:
