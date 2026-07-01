@@ -6,6 +6,7 @@
 
 - Overhaul `IoT Hub` and `EventGrid` icon in yaml file
 - Update `.yaml` files format to `2.0.0` (`ViciOne.TreeBuilder`)
+- Unify namespaces in DataPort yamls
 
 ## 0.32.0 - 2026-05-11
 

@@ -6,7 +6,7 @@
   Description  : "Azure IoT Hub DataPort"                                                          # required: Description of the file
   Author       : "ifm software gmbh"                                                               # required: Author of the file
   MetadataType : YAML                                                                              # required: Metadata type of the file (YAML, JSON, XML, Text, Binary, ...)
-  Namespace    : "ViciOne.DataPort.Azure.IotHub"                                                   # required: Namespace of the DataPort
+  Namespace    : "ViciOne.DataPort.Azure"                                                          # required: Namespace of the DataPort
 
 Root:
   Id                       : "AzureIotHubDataPort"                                                 # required: Id String to identify the root of the DataPort

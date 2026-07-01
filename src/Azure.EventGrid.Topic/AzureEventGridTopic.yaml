@@ -6,7 +6,7 @@
   Description  : "Azure EventGrid Topic DataPort"
   Author       : "ifm software gmbh"
   MetadataType : YAML
-  Namespace    : "ViciOne.DataPort.Azure.EventGrid.Topic"
+  Namespace    : "ViciOne.DataPort.Azure"
 
 Root:
   Id                       : "AzureEventGridTopicDataPort"
