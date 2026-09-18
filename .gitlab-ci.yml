@@ -36,113 +36,203 @@
   - *rule_mr
   - *rule_web
 
-.rules_manual: &rules_manual
-  - *rule_tag_manual
-  - *rule_default_branch_manual
-  - *rule_mr_manual
-  - *rule_web_manual
-
-.rules_only_tags: &rules_only_tags
-  - *rule_tag
-
 .rules_not_tags: &rules_not_tags
   - *rule_default_branch
   - *rule_mr
   - *rule_web
 
-default:
-  image: mcr.microsoft.com/dotnet/sdk:10.0
+.rules_only_tags_manual: &rules_only_tags_manual
+  - *rule_tag_manual
+
+.rules_not_tags_manual: &rules_not_tags_manual
+  - *rule_default_branch_manual
+  - *rule_mr_manual
+  - *rule_web_manual
+
+.exec_matrix: &exec_matrix
+  - OS: linux
+    ARCH: [x64, arm64]
+  - OS: win
+    ARCH: [x64]
+
+.update_nuget_source_ro: &update_nuget_source_ro
+  - dotnet nuget update source JFrogNuGetProxy --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
+  - dotnet nuget update source JFrogViciOne --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
 
 stages:
   - build
   - test
   - pack
   - publish
+  - release
 
 include:
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/version/version-calc@v1.2.0
     inputs:
       rules: *rules_always
-  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-restore@2
+  # Every module uses the same runtime identifiers, so one job serves them all.
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/runtime-identifier@v0.2.0
+    inputs:
+      project: "src/Azure.IotHub/Azure.IotHub.csproj"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-restore@v2.7.1
     inputs:
       before_script:
-        - dotnet nuget update source JFrogNuGetProxy --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
-        - dotnet nuget update source JFrogViciOne --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
+        - *update_nuget_source_ro
       rules: *rules_always
-  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-build@2
-    inputs:
-      rules: *rules_only_tags
-  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-artifacts@2
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-artifacts@v2.7.1
     inputs:
       name: "dotnet Build+Test"
       stage: test
       rules: *rules_not_tags
       before_script:
-        - dotnet nuget update source JFrogNuGetProxy --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
+        - *update_nuget_source_ro
       build: true
       test: true
       test_coverage: true
       test_filter: "/[(Category!=System)&(Category!=Integration)&(Category!=Interoperability)]"
-  - project: 'vicione-oss/tooling/templates'
-    file: '/CI-Templates/v2/dotnet.yml'
-  - project: 'vicione-oss/tooling/ci-templates'
-    file: '/project/v1/dotnet.yml'
-
-Push IoT Hub binaries:
-  extends: .dotnet-release-raw-rids
-  stage: publish
-  rules:
-    - <<: *rule_tag
-      variables:
-        SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    - *rule_default_branch_manual
-    - *rule_mr_manual
-    - *rule_web_manual
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/Azure.IotHub/Azure.IotHub.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Suite.DataPort.Azure.IotHub'
-    METADATA_FILE: 'src/Azure.IotHub/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  before_script:
-    - dotnet nuget update source JFrogNuGetProxy --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
-    - dotnet nuget update source JFrogViciOne --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
-  after_script:
-    - !reference [ .push-metadata ]
-
-Push EventGrid binaries:
-  extends: .dotnet-release-raw-rids
-  stage: publish
-  rules:
-    - <<: *rule_tag_manual
-      variables:
-        SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    - *rule_default_branch_manual
-    - *rule_mr_manual
-    - *rule_web_manual
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/Azure.EventGrid.Topic/Azure.EventGrid.Topic.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Suite.DataPort.Azure.EventGrid.Topic'
-    METADATA_FILE: 'src/Azure.EventGrid.Topic/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  before_script:
-    - dotnet nuget update source JFrogNuGetProxy --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
-    - dotnet nuget update source JFrogViciOne --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
-  after_script:
-    - !reference [ .push-metadata ]
-
-Publish binaries:
-  extends: .dotnet-release-public
-  stage: publish
-  needs:
-    - Push IoT Hub binaries
-    - Push EventGrid binaries
+  ### Azure.IotHub
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "Azure.IotHub Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/Azure.IotHub/Azure.IotHub.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/Azure.IotHub/metadata.json"
+      metadata_dir: "metadata/Azure.IotHub"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      name: "dotnet Publish Azure.IotHub"
+      stage: pack
+      rules:
+        - *rule_tag
+        - *rule_default_branch_manual
+        - *rule_mr_manual
+        - *rule_web_manual
+      project: "src/Azure.IotHub/Azure.IotHub.csproj"
+      output_directory: "artifacts/Azure.IotHub/${OS}-${ARCH}"
+      before_script:
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "Pack Azure.IotHub binaries"
+      stage: pack
+      rules: *rules_always
+      publish_job: "dotnet Publish Azure.IotHub"
+      metadata_job: "Azure.IotHub Metadata"
+      build_dir: "artifacts/Azure.IotHub"
+      metadata_dir: "metadata/Azure.IotHub"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.0.1
+    inputs:
+      name: "Push Azure.IotHub binaries (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.Suite.DataPort.Azure.IotHub"
+      needs:
+        - "Azure.IotHub Metadata"
+        - "Pack Azure.IotHub binaries"
+      artifacts:
+        - "artifacts/Azure.IotHub/**/*json"
+        - "artifacts/Azure.IotHub/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.0.1
+    inputs:
+      name: "Push Azure.IotHub binaries (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.Suite.DataPort.Azure.IotHub"
+      needs:
+        - "Azure.IotHub Metadata"
+        - "Pack Azure.IotHub binaries"
+      artifacts:
+        - "artifacts/Azure.IotHub/**/*json"
+        - "artifacts/Azure.IotHub/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.0.1
+    inputs:
+      name: "Release Azure.IotHub binaries"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.Suite.DataPort.Azure.IotHub"
+  ### Azure.EventGrid.Topic
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "Azure.EventGrid.Topic Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/Azure.EventGrid.Topic/Azure.EventGrid.Topic.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/Azure.EventGrid.Topic/metadata.json"
+      metadata_dir: "metadata/Azure.EventGrid.Topic"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      name: "dotnet Publish Azure.EventGrid.Topic"
+      stage: pack
+      rules:
+        - *rule_tag
+        - *rule_default_branch_manual
+        - *rule_mr_manual
+        - *rule_web_manual
+      project: "src/Azure.EventGrid.Topic/Azure.EventGrid.Topic.csproj"
+      output_directory: "artifacts/Azure.EventGrid.Topic/${OS}-${ARCH}"
+      before_script:
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "Pack Azure.EventGrid.Topic binaries"
+      stage: pack
+      rules: *rules_always
+      publish_job: "dotnet Publish Azure.EventGrid.Topic"
+      metadata_job: "Azure.EventGrid.Topic Metadata"
+      build_dir: "artifacts/Azure.EventGrid.Topic"
+      metadata_dir: "metadata/Azure.EventGrid.Topic"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.0.1
+    inputs:
+      name: "Push Azure.EventGrid.Topic binaries (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.Suite.DataPort.Azure.EventGrid.Topic"
+      needs:
+        - "Azure.EventGrid.Topic Metadata"
+        - "Pack Azure.EventGrid.Topic binaries"
+      artifacts:
+        - "artifacts/Azure.EventGrid.Topic/**/*json"
+        - "artifacts/Azure.EventGrid.Topic/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.0.1
+    inputs:
+      name: "Push Azure.EventGrid.Topic binaries (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.Suite.DataPort.Azure.EventGrid.Topic"
+      needs:
+        - "Azure.EventGrid.Topic Metadata"
+        - "Pack Azure.EventGrid.Topic binaries"
+      artifacts:
+        - "artifacts/Azure.EventGrid.Topic/**/*json"
+        - "artifacts/Azure.EventGrid.Topic/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.0.1
+    inputs:
+      name: "Release Azure.EventGrid.Topic binaries"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.Suite.DataPort.Azure.EventGrid.Topic"
