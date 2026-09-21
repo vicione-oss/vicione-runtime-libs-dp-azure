@@ -4,15 +4,15 @@
     "net10.0": {
       "Microsoft.Azure.Devices": {
         "type": "Direct",
-        "requested": "[1.41.0, )",
-        "resolved": "1.41.0",
-        "contentHash": "J3tr63fgQOeCLMJQt67TXmx7HG2ZhH9TyTgm699pmcCR1tAsUaJrsKWX/IJYB+5SfwRGaXVFzy2aSbabzFS+/Q==",
+        "requested": "[1.41.1, )",
+        "resolved": "1.41.1",
+        "contentHash": "+3EKQYrFRG9qWWo/D1Se4J+EMAyM+IQU6PjYN+yst0U0jEzsY8kqDAkdINgCU9BqjvDNQanUDgGMDM+GKVQA+Q==",
         "dependencies": {
           "Azure.Core": "1.44.1",
-          "Microsoft.Azure.Amqp": "2.6.9",
-          "Microsoft.Azure.Devices.Shared": "1.30.4",
+          "Microsoft.Azure.Amqp": "2.7.3",
+          "Microsoft.Azure.Devices.Shared": "1.30.5",
           "Microsoft.Rest.ClientRuntime": "2.3.24",
-          "Newtonsoft.Json": "13.0.3"
+          "Newtonsoft.Json": "13.0.4"
         }
       },
       "Microsoft.Azure.Devices.Client": {
@@ -126,15 +126,15 @@
       },
       "Microsoft.Azure.Amqp": {
         "type": "Transitive",
-        "resolved": "2.6.9",
-        "contentHash": "5i9XzfqxK1H5IBl+OuOV1jwJdrOvi5RUwsZgVOryZm0GCzcM9NWPNRxzPAbsSeaR2T6+1gGvdT3vR+Vbha6KFQ=="
+        "resolved": "2.7.3",
+        "contentHash": "Gf/SJzDoz+8KdmoNeGMv60ww/SitoddwCd0nDAORPaSdBwvOW27sGapNGTluSVFdSijgvzxMjxTM+wiCooDMNg=="
       },
       "Microsoft.Azure.Devices.Shared": {
         "type": "Transitive",
-        "resolved": "1.30.4",
-        "contentHash": "c24XKJ2PnugnDe/CHSYVcvP0TBua/P2S520PrV/edIcz+UmmNziV0U0aWpxmbj0BaVlIVhAtj26CcQuO0q+UjQ==",
+        "resolved": "1.30.5",
+        "contentHash": "1xkM9Mmchh3DoXl9/LZyYidN47VTSEIMrRvVyOoS8BAR9KeicE2etVLCTGcy3tazRqkw/vg0iSChj9H4LVli9w==",
         "dependencies": {
-          "Newtonsoft.Json": "13.0.3"
+          "Newtonsoft.Json": "13.0.4"
         }
       },
       "Microsoft.Bcl.AsyncInterfaces": {
@@ -198,8 +198,8 @@
       },
       "Newtonsoft.Json": {
         "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
+        "resolved": "13.0.4",
+        "contentHash": "pdgNNMai3zv51W5aq268sujXUyx7SNdE2bj1wZcWjAQrKMFZV260lbqYop1d2GM67JI1huLRwxo9ZqnfF/lC6A=="
       },
       "System.ClientModel": {
         "type": "Transitive",
