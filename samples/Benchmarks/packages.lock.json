@@ -23,18 +23,18 @@
       },
       "Azure.Storage.Blobs": {
         "type": "Transitive",
-        "resolved": "12.19.1",
-        "contentHash": "x43hWFJ4sPQ23TD4piCwT+KlQpZT8pNDAzqj6yUCqh+WJ2qcQa17e1gh6ZOeT2QNFQTTDSuR56fm2bIV7i11/w==",
+        "resolved": "12.23.0",
+        "contentHash": "wokJ5KX/iViQQ32xyCu69+Ter0aR4B9QQ+oR9NCpc/WPIanxnDErrmFfdmE7K8ZdccjHkvE/wEnqJxaF1+5wFg==",
         "dependencies": {
-          "Azure.Storage.Common": "12.18.1"
+          "Azure.Storage.Common": "12.22.0"
         }
       },
       "Azure.Storage.Common": {
         "type": "Transitive",
-        "resolved": "12.18.1",
-        "contentHash": "ohCslqP9yDKIn+DVjBEOBuieB1QwsUCz+BwHYNaJ3lcIsTSiI4Evnq81HcKe8CqM8qvdModbipVQKpnxpbdWqA==",
+        "resolved": "12.22.0",
+        "contentHash": "0Vm30bRpQ0fcswB0xQMhKAOSXnRygnF2f/029uPaIDLaj1/yfX4jmU0fFjJe9ojGEj/vlAmsApCEOyL9if6zHg==",
         "dependencies": {
-          "Azure.Core": "1.36.0",
+          "Azure.Core": "1.44.1",
           "System.IO.Hashing": "6.0.0"
         }
       },
@@ -341,7 +341,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Azure.Devices": "[1.41.1, )",
-          "Microsoft.Azure.Devices.Client": "[1.42.3, )",
+          "Microsoft.Azure.Devices.Client": "[1.42.4, )",
           "ViciOne.Suite.DataPort": "[0.32.0, )"
         }
       },
@@ -360,17 +360,17 @@
       },
       "Microsoft.Azure.Devices.Client": {
         "type": "CentralTransitive",
-        "requested": "[1.42.3, )",
-        "resolved": "1.42.3",
-        "contentHash": "U0u26o1Bc/h+Qq3AHek82BfUabkPie3eWtCqHFxDT9y0TIm/ZkdX2nNRYqkdfjexQEewUJXetfDRXKxR9gXY4g==",
+        "requested": "[1.42.4, )",
+        "resolved": "1.42.4",
+        "contentHash": "VvTdBk1wS4h4VzntyiBdfI16oZHVIx1uLinlKhqljddYyybweYQgBZkFIM66kH3nDqBcGZU+C9Gf956Kzte8SQ==",
         "dependencies": {
-          "Azure.Storage.Blobs": "12.19.1",
+          "Azure.Storage.Blobs": "12.23.0",
           "DotNetty.Codecs.Mqtt": "0.7.6",
           "DotNetty.Common": "0.7.6",
           "DotNetty.Handlers": "0.7.6",
-          "Microsoft.Azure.Amqp": "2.5.12",
-          "Microsoft.Azure.Devices.Shared": "1.30.4",
-          "Newtonsoft.Json": "13.0.3",
+          "Microsoft.Azure.Amqp": "2.7.3",
+          "Microsoft.Azure.Devices.Shared": "1.30.5",
+          "Newtonsoft.Json": "13.0.4",
           "System.Configuration.ConfigurationManager": "4.4.1"
         }
       },
