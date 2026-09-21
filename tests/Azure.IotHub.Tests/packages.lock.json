@@ -28,9 +28,9 @@
       },
       "Microsoft.Extensions.TimeProvider.Testing": {
         "type": "Direct",
-        "requested": "[10.4.0, )",
-        "resolved": "10.4.0",
-        "contentHash": "uJ8n9WUEzux9I2CjZh7imGBgZadfwhAKlxuBq7GsNGL8FJF81aHXAYaRMnwW+9EvRFQNytu7xo1ffeuuTncAzg=="
+        "requested": "[10.10.0, )",
+        "resolved": "10.10.0",
+        "contentHash": "8duZdxuO3Oo8tlyQXVq1drXee6GJC9DjUU97Pq3YaIqf92jrAHsWxbbRKwvjQI48Mer3IANwUKF0elqvHeY4Rw=="
       },
       "Microsoft.Testing.Extensions.CodeCoverage": {
         "type": "Direct",
