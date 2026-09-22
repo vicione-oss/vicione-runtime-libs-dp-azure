@@ -7,6 +7,7 @@
 - Overhaul `IoT Hub` and `EventGrid` icon in yaml file
 - Update `.yaml` files format to `2.0.0` (`ViciOne.TreeBuilder`)
 - Unify namespaces in DataPort yamls
+- Rename the company to `ViciOne open automation gmbh` in the package metadata, the license and the `Author` of the `.yaml` files
 - Update `Microsoft.Azure.Devices` to `1.41.1`
 - Update `Microsoft.Azure.Devices.Client` to `1.42.4`
 
