@@ -4,7 +4,7 @@
   Version      : 0.32.0
   Date         : 2026-05-11
   Description  : "Azure EventGrid Topic DataPort"
-  Author       : "ifm software gmbh"
+  Author       : "ViciOne open automation gmbh"
   MetadataType : YAML
   Namespace    : "ViciOne.DataPort.Azure"
 
