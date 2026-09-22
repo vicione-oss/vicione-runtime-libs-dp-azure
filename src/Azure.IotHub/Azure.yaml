@@ -69,6 +69,7 @@ Nodes:
     Description            : "Telemetry data"
     Icon                   : folder
     TransferModes          : [ OnChange, Periodic, None ]
+    TransferDirections     : [ Outbound ]
     ChildNodes             :
       - Id                 : JsonStructure
       - Id                 : DataPointBool
