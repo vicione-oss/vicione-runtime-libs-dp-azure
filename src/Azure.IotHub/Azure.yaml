@@ -53,8 +53,8 @@ Nodes:
     Icon                   : device
     NameValidations        :
       - Type               : Regex
-        Pattern            : '^[a-zA-Z0-9\-:.+%_#*?!(),=@;$'']{1,128}$'
-        Message            : "Device ID must be 1-128 characters and can only contain alphanumerics and -:.+%_#*?!(),=@;$' characters."
+        Pattern            : '^[a-zA-Z0-9\-:.%_*?!(),=@$'']{1,128}$'
+        Message            : "Device ID must be 1-128 characters and can only contain alphanumerics and -:.%_*?!(),=@$' characters."
     ChildNodes             :
       - Id                 : Telemetry
         MaxInstances       : 1

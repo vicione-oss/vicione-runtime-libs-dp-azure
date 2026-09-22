@@ -11,6 +11,11 @@
 - Update `Microsoft.Azure.Devices` to `1.41.1`
 - Update `Microsoft.Azure.Devices.Client` to `1.42.4`
 
+### Fixed
+
+- Reject `+`, `#` and `;` in IoT Hub device names, which Azure does not accept as device ID characters
+- Mask the EventGrid topic access key input
+
 ## 0.32.0 - 2026-05-11
 
 ### Added
