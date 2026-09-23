@@ -15,6 +15,7 @@
 
 - Reject `+`, `#` and `;` in IoT Hub device names, which Azure does not accept as device ID characters
 - Mask the EventGrid topic access key input
+- Restrict IoT Hub `Telemetry` to outbound
 
 ## 0.32.0 - 2026-05-11
 
