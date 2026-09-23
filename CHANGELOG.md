@@ -10,12 +10,12 @@
 - Rename the company to `ViciOne open automation gmbh` in the package metadata, the license and the `Author` of the `.yaml` files
 - Update `Microsoft.Azure.Devices` to `1.41.1`
 - Update `Microsoft.Azure.Devices.Client` to `1.42.4`
-- **Breaking**: Restrict IoT Hub `Telemetry` to outbound; a dataflow reading a telemetry value never received data and is now rejected at deployment
 
 ### Fixed
 
 - Reject `+`, `#` and `;` in IoT Hub device names, which Azure does not accept as device ID characters
 - Mask the EventGrid topic access key input
+- Restrict IoT Hub `Telemetry` to outbound
 
 ## 0.32.0 - 2026-05-11
 
