@@ -187,7 +187,7 @@ Properties:
     Name        : "Topic Access Key"
     Description : "Access Key of the Topic"
     DataType    : String
-    UiControl   : TextBox
+    UiControl   : PasswordBox
 
   - Id          : EventType
     Name        : "EventType"
