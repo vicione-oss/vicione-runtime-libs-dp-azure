@@ -15,6 +15,7 @@ Root:
   Icon                     : azure-eventgrid
   ChildNodes               :
     - Id                   : AzureEventGridTopicInstance
+      MaxDepth             : 64
       MaxInstances         : 16
 
 Nodes:
@@ -45,8 +46,8 @@ Nodes:
   - Id                     : EventGridEvent
     MappingId              : EventGridEvent
     Type                   : DataPortTreeNode
-    Name                   : "EventGridEvent"
-    Description            : "EventGridEvent"
+    Name                   : "Event Grid event"
+    Description            : "Event published to the topic; its name becomes the event subject"
     Icon                   : broker
     TransferModes          : [ OnChange, Periodic, None ]
     NameValidations        :
@@ -178,40 +179,40 @@ PropertyCategories:
 
 Properties:
   - Id          : TopicEndpoint
-    Name        : "Topic Endpoint"
-    Description : "Endpoint of the Topic"
+    Name        : "Topic endpoint"
+    Description : "Endpoint URL of the Event Grid topic, e.g. https://my-topic.westeurope-1.eventgrid.azure.net/api/events"
     DataType    : String
     UiControl   : TextBox
 
   - Id          : AccessKey
-    Name        : "Topic Access Key"
-    Description : "Access Key of the Topic"
+    Name        : "Topic access key"
+    Description : "Access key of the Event Grid topic"
     DataType    : String
     UiControl   : PasswordBox
 
   - Id          : EventType
-    Name        : "EventType"
-    Description : "EventType of the Topic Subject"
+    Name        : "Event type"
+    Description : "Event type sent with every event, used by subscribers to filter events"
     DataType    : String
     UiControl   : TextBox
 
   - Id          : DataVersion
-    Name        : "DataVersion"
-    Description : "DataVersion of the Topic Subject"
+    Name        : "Data version"
+    Description : "Schema version of the event data, sent with every event"
     DataType    : String
     UiControl   : TextBox
 
   - Id          : MaxPendingMessages
-    Name        : "MaxPendingMessages"
-    Description : "Maximum of pending messages"
+    Name        : "Max pending messages"
+    Description : "Maximum number of entries waiting to be sent. When it is exceeded, the oldest entries are dropped until the queue is back at 80% of this size"
     DataType    : Int32
     DefaultValue: 100000
     UiControl   : NumericUpDown
     MinValue    : 1
 
   - Id          : BulkSize
-    Name        : "BulkSize"
-    Description : "BulkSize"
+    Name        : "Bulk size"
+    Description : "Maximum number of queued entries sent together in one batch. The default of 5000 keeps the number of requests to Azure low while bounding the size of a single batch"
     DataType    : Int32
     DefaultValue: 5000
     UiControl   : NumericUpDown
