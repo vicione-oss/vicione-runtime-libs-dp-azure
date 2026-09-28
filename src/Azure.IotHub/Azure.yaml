@@ -15,6 +15,7 @@ Root:
   Icon                     : azure-iot-hub                                                         # required: just one Icon for the DataPort
   ChildNodes               :
     - Id                   : AzureIotInstance
+      MaxDepth             : 64
       MaxInstances         : 16
 
 Nodes:
@@ -234,33 +235,33 @@ PropertyCategories:
 Properties:
   - Id          : Hostname
     Name        : "Hostname"
-    Description : "Hostname of the Azure IoT Hub"
+    Description : "Hostname of the Azure IoT Hub, e.g. my-hub.azure-devices.net"
     DataType    : String
     UiControl   : TextBox
 
   - Id          : SharedAccessSignatureKey
-    Name        : "Shared Access Signature Key"
+    Name        : "Shared access signature key"
     Description : "Shared access signature key of the Azure IoT Hub"
     DataType    : String
     UiControl   : PasswordBox
 
   - Id          : SharedAccessSignatureKeyName
-    Name        : "Shared Access Signature Key Name"
+    Name        : "Shared access signature key name"
     Description : "Shared access signature key name of the Azure IoT Hub"
     DataType    : String
     UiControl   : TextBox
 
   - Id          : MaxPendingMessages
-    Name        : "MaxPendingMessages"
-    Description : "Maximum of pending messages"
+    Name        : "Max pending messages"
+    Description : "Maximum number of entries waiting to be sent. When it is exceeded, the oldest entries are dropped until the queue is back at 80% of this size"
     DataType    : Int32
     DefaultValue: 100000
     UiControl   : NumericUpDown
     MinValue    : 1
 
   - Id          : BulkSize
-    Name        : "BulkSize"
-    Description : "BulkSize"
+    Name        : "Bulk size"
+    Description : "Maximum number of queued entries sent together in one batch. The default of 5000 keeps the number of requests to Azure low while bounding the size of a single batch"
     DataType    : Int32
     DefaultValue: 5000
     UiControl   : NumericUpDown

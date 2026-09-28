@@ -10,6 +10,8 @@
 - Rename the company to `ViciOne open automation gmbh` in the package metadata, the license and the `Author` of the `.yaml` files
 - Update `Microsoft.Azure.Devices` to `1.41.1`
 - Update `Microsoft.Azure.Devices.Client` to `1.42.4`
+- Limit the tree depth of both DataPorts to 64
+- Write property display names in sentence case and explain `Bulk size`, `Max pending messages` and the EventGrid properties in their descriptions
 
 ### Fixed
 
