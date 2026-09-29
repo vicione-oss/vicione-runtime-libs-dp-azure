@@ -15,7 +15,7 @@
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="ViciOne.ManagedEngine" />
-    <PackageReference Include="ViciOne.TreeBuilder" />
+    <PackageReference Include="ViciOne.Tree.Builder" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 

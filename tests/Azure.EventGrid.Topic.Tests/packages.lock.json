@@ -47,11 +47,11 @@
           "ViciOne.ManagedEngine.Contracts": "1.0.0"
         }
       },
-      "ViciOne.TreeBuilder": {
+      "ViciOne.Tree.Builder": {
         "type": "Direct",
-        "requested": "[2.1.0, )",
-        "resolved": "2.1.0",
-        "contentHash": "Hhg4Ud4mgLo/ssUZXg8aUg4Tjoqk9brlTzBMxNszD8HcT/HJKnW+8p18i2U+nnS0pDDOr/UzBdgRd45ZQg5qpA==",
+        "requested": "[3.0.0, )",
+        "resolved": "3.0.0",
+        "contentHash": "iDO1AEB0vVw9VsUjkMEtx1HyQg74jznOPf9fjEeLRvMAWU7n7/BU6OlRvUATRhbTCKLx32N9BrnokgoM8NfHpQ==",
         "dependencies": {
           "AngleSharp": "1.6.0",
           "YamlDotNet": "16.3.0"
