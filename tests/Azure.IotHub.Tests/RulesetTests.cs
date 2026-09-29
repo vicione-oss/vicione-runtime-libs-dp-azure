@@ -1,8 +1,8 @@
 ﻿using System.Linq;
 using AwesomeAssertions;
-using ViciOne.TreeBuilder.Rules;
-using ViciOne.TreeBuilder.Rules.Yaml;
-using ViciOne.TreeBuilder.Validation;
+using ViciOne.Tree.Builder.Rules;
+using ViciOne.Tree.Builder.Rules.Yaml;
+using ViciOne.Tree.Builder.Validation;
 using Xunit;
 
 namespace ViciOne.Suite.DataPort;
