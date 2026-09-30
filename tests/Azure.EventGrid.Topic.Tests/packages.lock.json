@@ -425,7 +425,7 @@
         "type": "Project",
         "dependencies": {
           "Azure.Messaging.EventGrid": "[5.0.0, )",
-          "ViciOne.Suite.DataPort": "[0.32.0, )"
+          "ViciOne.Suite.DataPort": "[1.0.0, )"
         }
       },
       "Azure.Messaging.EventGrid": {
@@ -440,9 +440,9 @@
       },
       "ViciOne.Suite.DataPort": {
         "type": "CentralTransitive",
-        "requested": "[0.32.0, )",
-        "resolved": "0.32.0",
-        "contentHash": "xFJKSmxkPwlXPQcdouNDdbmaJTdFZkVjZmSn2kHVP4YQFUe3n4p7DZRkxUPsyk7ls0jf7G9RHMXqxqxvsKS71w==",
+        "requested": "[1.0.0, )",
+        "resolved": "1.0.0",
+        "contentHash": "dZlaF2Rn64IRGGZokvA67RakHfGqLDrwalt7X7SbMjLep/mliSET6CNBDb9+/2TIm/nYK2HMFAz3Moja0xxTEQ==",
         "dependencies": {
           "ViciOne.ManagedEngine.Contracts": "1.0.0"
         }
