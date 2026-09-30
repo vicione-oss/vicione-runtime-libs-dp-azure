@@ -12,6 +12,7 @@
 - Update `Microsoft.Azure.Devices.Client` to `1.42.4`
 - Limit the tree depth of both DataPorts to 64
 - Write property display names in sentence case and explain `Bulk size`, `Max pending messages` and the EventGrid properties in their descriptions
+- Update `ViciOne.Suite.DataPort` to `1.0.0`
 
 ### Fixed
 
