@@ -1,8 +1,8 @@
 ﻿Common:
   Target       : DataPort
   ContentType  : Rules
-  Version      : 0.32.0
-  Date         : 2026-05-11
+  Version      : 1.0.0
+  Date         : 2026-10-01
   Description  : "Azure EventGrid Topic DataPort"
   Author       : "ViciOne open automation gmbh"
   MetadataType : YAML

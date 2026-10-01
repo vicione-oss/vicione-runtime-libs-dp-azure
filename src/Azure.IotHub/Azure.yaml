@@ -1,8 +1,8 @@
 ﻿Common:
   Target       : DataPort                                                                          # required: Id String to identify the target of the file
   ContentType  : Rules                                                                             # required: Id String to identify the content of the file
-  Version      : 0.32.0                                                                            # required: Version of the file
-  Date         : 2026-05-11                                                                        # required: Date of the file
+  Version      : 1.0.0                                                                             # required: Version of the file
+  Date         : 2026-10-01                                                                        # required: Date of the file
   Description  : "Azure IoT Hub DataPort"                                                          # required: Description of the file
   Author       : "ViciOne open automation gmbh"                                                    # required: Author of the file
   MetadataType : YAML                                                                              # required: Metadata type of the file (YAML, JSON, XML, Text, Binary, ...)
