@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using AwesomeAssertions;
 using Microsoft.Extensions.Time.Testing;
 using Xunit;
@@ -144,5 +146,73 @@ public class DesiredPropertyHandler_
         };
         AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, propertiesNode, desiredPropertiesNode, desiredGroupNode, desiredValueNode,], };
         desiredPropertyHandler = new(communication, timeProvider, new());
+    }
+}
+
+public class DesiredPropertyHandler_HandleDesiredProperty
+{
+    private const string DeviceName = "MyDevice";
+
+    [Fact]
+    public void Returns_only_the_values_present_in_the_patch()
+    {
+        var (handler, channels) = CreateHandler("MyValue", "OtherValue");
+
+        var values = handler.HandleDesiredProperty(DeviceName, new("""{ "OtherValue": 555, "$version": 7 }"""));
+
+        var value = values.Should().ContainSingle().Which;
+        value.Channel.Should().Be(channels["OtherValue"]);
+        value.Value.Should().Be(555);
+    }
+
+    [Fact]
+    public void Skips_properties_removed_with_null()
+    {
+        var (handler, _) = CreateHandler("MyValue");
+
+        var values = handler.HandleDesiredProperty(DeviceName, new("""{ "MyValue": null }"""));
+
+        values.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Returns_no_values_for_a_device_without_desired_properties()
+    {
+        var (handler, _) = CreateHandler("MyValue");
+
+        var values = handler.HandleDesiredProperty("OtherDevice", new("""{ "MyValue": 23 }"""));
+
+        values.Should().BeEmpty();
+    }
+
+    private static (DesiredPropertyHandler Handler, Dictionary<string, string> Channels) CreateHandler(params string[] valueNames)
+    {
+        Node deviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = DeviceName, };
+        Node otherDeviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = "OtherDevice", };
+        Node propertiesNode = new() { Id = Guid.NewGuid(), ParentId = deviceNode.Id, DesignId = AzureIotHubNodeDesignId.Properties, };
+        var desiredNodeId = Guid.NewGuid();
+        var valueNodes = valueNames.Select(name =>
+        {
+            var id = Guid.NewGuid();
+            return new Node
+            {
+                Id = id,
+                ParentId = desiredNodeId,
+                DesignId = AzureIotHubNodeDesignId.JsonStructure,
+                Name = name,
+                AffectedChannels = [id.ToString(),],
+                ValueType = typeof(int),
+            };
+        }).ToArray();
+        Node desiredNode = new()
+        {
+            Id = desiredNodeId,
+            ParentId = propertiesNode.Id,
+            DesignId = AzureIotHubNodeDesignId.Desired,
+            TransferredChannels = [.. valueNodes.Select(n => n.Id.ToString()),],
+        };
+        AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, otherDeviceNode, propertiesNode, desiredNode, .. valueNodes,], };
+
+        return (new(communication, TimeProvider.System, new()), valueNodes.ToDictionary(n => n.Name, n => n.Id.ToString()));
     }
 }
