@@ -15,6 +15,7 @@ using Microsoft.Azure.Devices.Shared;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Testing;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using ViciOne.ManagedEngine.ExternalCommunication;
 using ViciOne.ManagedEngine.Runtime;
@@ -107,39 +108,15 @@ public class AzureIotHubDataPortOutgoing_SendAsync
         logger.Collector.GetSnapshot().Should().ContainSingle(r => r.Level == LogLevel.Error && r.Message.Contains("dropped", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task Stops_retrying_and_clears_the_queue_on_disconnect_Async()
-    {
-        var deviceClient = Substitute.For<IDeviceClient>();
-        TaskCompletionSource attempted = new();
-        deviceClient.SendEventAsync(Arg.Any<Message>(), Arg.Any<CancellationToken>()).Returns(_ =>
-        {
-            attempted.TrySetResult();
-            return Task.FromException(new IotHubSuspendedException("IoT Hub suspended."));
-        });
-        FakeLogger<AzureIotHubDataPortOutgoing> logger = new();
-        using DeviceClientPool pool = new((_, _) => deviceClient);
-        await using var outgoing = CreateOutgoing(pool, logger);
-        await outgoing.ConnectAsync(TestContext.Current.CancellationToken);
-        await outgoing.SendAsync(1, CreateCycle(1), TestContext.Current.CancellationToken);
-        await outgoing.SendAsync(2, CreateCycle(2), TestContext.Current.CancellationToken);
-        await attempted.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        await outgoing.DisconnectAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
-
-        await deviceClient.DidNotReceive().UpdateReportedPropertiesAsync(Arg.Any<TwinCollection>(), Arg.Any<CancellationToken>());
-        logger.LatestRecord.Message.Should().Be("Cannot publish values. Queue will be cleared.");
-    }
-
     private sealed class Unserializable
     {
         public int Value => throw new InvalidOperationException("Value cannot be read.");
     }
 
-    private static ExternalValue[] CreateCycle(int value)
+    internal static ExternalValue[] CreateCycle(int value)
         => [new() { Channel = TelemetryChannel, Value = value, }, new() { Channel = ReportedChannel, Value = value, },];
 
-    private static AzureIotHubDataPortOutgoing CreateOutgoing(DeviceClientPool pool, ILogger<AzureIotHubDataPortOutgoing> logger)
+    internal static AzureIotHubDataPortOutgoing CreateOutgoing(DeviceClientPool pool, ILogger<AzureIotHubDataPortOutgoing> logger, TimeProvider? timeProvider = null)
     {
         Node deviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = "MyDevice", };
         Node telemetryNode = new() { Id = Guid.NewGuid(), ParentId = deviceNode.Id, DesignId = AzureIotHubNodeDesignId.Telemetry, TransferredChannels = [TelemetryChannel,], };
@@ -155,7 +132,91 @@ public class AzureIotHubDataPortOutgoing_SendAsync
             {
                 [deviceNode.Id] = await pool.Register("hub", deviceNode.Name, Substitute.For<IAuthenticationMethod>(), cancellationToken),
             },
-            logger);
+            logger,
+            timeProvider);
+    }
+}
+
+public class AzureIotHubDataPortOutgoing_DisconnectAsync
+{
+    [Fact]
+    public async Task Stops_retrying_and_clears_the_queue_Async()
+    {
+        var deviceClient = Substitute.For<IDeviceClient>();
+        TaskCompletionSource attempted = new();
+        deviceClient.SendEventAsync(Arg.Any<Message>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            attempted.TrySetResult();
+            return Task.FromException(new IotHubSuspendedException("IoT Hub suspended."));
+        });
+        FakeLogger<AzureIotHubDataPortOutgoing> logger = new();
+        using DeviceClientPool pool = new((_, _) => deviceClient);
+        await using var outgoing = AzureIotHubDataPortOutgoing_SendAsync.CreateOutgoing(pool, logger);
+        await outgoing.ConnectAsync(TestContext.Current.CancellationToken);
+        await outgoing.SendAsync(1, AzureIotHubDataPortOutgoing_SendAsync.CreateCycle(1), TestContext.Current.CancellationToken);
+        await outgoing.SendAsync(2, AzureIotHubDataPortOutgoing_SendAsync.CreateCycle(2), TestContext.Current.CancellationToken);
+        await attempted.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        await outgoing.DisconnectAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        await deviceClient.DidNotReceive().UpdateReportedPropertiesAsync(Arg.Any<TwinCollection>(), Arg.Any<CancellationToken>());
+        logger.LatestRecord.Message.Should().Be("Cannot publish values. Queue will be cleared.");
+    }
+
+    [Fact]
+    public async Task Stops_a_send_that_does_not_return_after_the_flush_timeout_Async()
+    {
+        var (deviceClient, attempted) = CreateUnreachableDeviceClient();
+        FakeTimeProvider timeProvider = new();
+        FakeLogger<AzureIotHubDataPortOutgoing> logger = new();
+        using DeviceClientPool pool = new((_, _) => deviceClient);
+        await using var outgoing = AzureIotHubDataPortOutgoing_SendAsync.CreateOutgoing(pool, logger, timeProvider);
+        await outgoing.ConnectAsync(TestContext.Current.CancellationToken);
+        await outgoing.SendAsync(1, AzureIotHubDataPortOutgoing_SendAsync.CreateCycle(1), TestContext.Current.CancellationToken);
+        await outgoing.SendAsync(2, AzureIotHubDataPortOutgoing_SendAsync.CreateCycle(2), TestContext.Current.CancellationToken);
+        await attempted.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        var disconnect = outgoing.DisconnectAsync(TestContext.Current.CancellationToken);
+        var completedBeforeTimeout = disconnect.IsCompleted;
+        timeProvider.Advance(AzureIotHubDataPortOutgoing.DisconnectFlushTimeout);
+        await disconnect.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        completedBeforeTimeout.Should().BeFalse();
+        await deviceClient.DidNotReceive().UpdateReportedPropertiesAsync(Arg.Any<TwinCollection>(), Arg.Any<CancellationToken>());
+        logger.LatestRecord.Message.Should().Be("Cannot publish values. Queue will be cleared.");
+    }
+
+    [Fact]
+    public async Task Stops_a_send_that_does_not_return_when_cancelled_Async()
+    {
+        var (deviceClient, attempted) = CreateUnreachableDeviceClient();
+        using DeviceClientPool pool = new((_, _) => deviceClient);
+        await using var outgoing = AzureIotHubDataPortOutgoing_SendAsync.CreateOutgoing(pool, NullLogger<AzureIotHubDataPortOutgoing>.Instance, new FakeTimeProvider());
+        await outgoing.ConnectAsync(TestContext.Current.CancellationToken);
+        await outgoing.SendAsync(1, AzureIotHubDataPortOutgoing_SendAsync.CreateCycle(1), TestContext.Current.CancellationToken);
+        await attempted.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        using CancellationTokenSource stop = new();
+
+        var disconnect = outgoing.DisconnectAsync(stop.Token);
+        await stop.CancelAsync();
+        var waitForDisconnect = () => disconnect.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        await waitForDisconnect.Should().ThrowAsync<OperationCanceledException>();
+        await deviceClient.DidNotReceive().UpdateReportedPropertiesAsync(Arg.Any<TwinCollection>(), Arg.Any<CancellationToken>());
+    }
+
+    // The SDK retries a hub it cannot reach without end and returns only when the token is cancelled.
+    private static (IDeviceClient DeviceClient, TaskCompletionSource Attempted) CreateUnreachableDeviceClient()
+    {
+        var deviceClient = Substitute.For<IDeviceClient>();
+        TaskCompletionSource attempted = new();
+        deviceClient.SendEventAsync(Arg.Any<Message>(), Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            attempted.TrySetResult();
+            return Task.Delay(Timeout.Infinite, call.ArgAt<CancellationToken>(1));
+        });
+
+        return (deviceClient, attempted);
     }
 }
 
