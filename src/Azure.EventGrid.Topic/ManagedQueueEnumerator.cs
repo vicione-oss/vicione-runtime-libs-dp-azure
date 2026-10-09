@@ -19,6 +19,9 @@ internal class ManagedQueueEnumerator<T> : IAsyncEnumerator<List<T>>, IAsyncEnum
         _queue.ItemAdded += SetGate;
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokens);
         _count = count;
+
+        if (_queue.Count > 0)
+            _gate.Set();
     }
 
     private void SetGate(int count)
@@ -32,6 +35,9 @@ internal class ManagedQueueEnumerator<T> : IAsyncEnumerator<List<T>>, IAsyncEnum
 
         if (_queue.Take(_count, out var items))
         {
+            if (_queue.Count > 0)
+                _gate.Set();
+
             _current = items;
             return true;
         }
