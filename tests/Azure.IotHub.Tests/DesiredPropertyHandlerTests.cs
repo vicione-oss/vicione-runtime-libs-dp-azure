@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using AwesomeAssertions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
@@ -113,7 +116,7 @@ public class DesiredPropertyHandler_
             ValueType = typeof(int),
         };
         AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, propertiesNode, desiredPropertiesNode, desiredValueNode,], };
-        desiredPropertyHandler = new(communication, timeProvider ?? TimeProvider.System, new());
+        desiredPropertyHandler = new(communication, timeProvider ?? TimeProvider.System, new(), NullLogger.Instance);
     }
 
     private static void CreateGroupNodeDesiredHandler(out Node deviceNode, out Guid desiredValueNodeId, out DesiredPropertyHandler desiredPropertyHandler, TimeProvider? timeProvider = null)
@@ -145,7 +148,7 @@ public class DesiredPropertyHandler_
             ValueType = typeof(int),
         };
         AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, propertiesNode, desiredPropertiesNode, desiredGroupNode, desiredValueNode,], };
-        desiredPropertyHandler = new(communication, timeProvider, new());
+        desiredPropertyHandler = new(communication, timeProvider, new(), NullLogger.Instance);
     }
 }
 
@@ -185,34 +188,74 @@ public class DesiredPropertyHandler_HandleDesiredProperty
         values.Should().BeEmpty();
     }
 
-    private static (DesiredPropertyHandler Handler, Dictionary<string, string> Channels) CreateHandler(params string[] valueNames)
+    [Fact]
+    public void Skips_and_logs_a_value_that_does_not_match_its_type()
+    {
+        FakeLogger<DesiredPropertyHandler> logger = new();
+        var (handler, channels) = CreateHandler(logger, "MyValue", "OtherValue");
+
+        var values = handler.HandleDesiredProperty(DeviceName, new("""{ "MyValue": "abc", "OtherValue": 555 }"""));
+
+        values.Should().ContainSingle().Which.Channel.Should().Be(channels["OtherValue"]);
+        logger.LatestRecord.Level.Should().Be(LogLevel.Warning);
+        logger.LatestRecord.Message.Should().Match("*'MyValue'*'MyDevice'*");
+    }
+
+    [Theory]
+    [InlineData("""{ "MyGroup": 5, "OtherValue": 555 }""")]
+    [InlineData("""{ "MyGroup": [1], "OtherValue": 555 }""")]
+    public void Skips_and_logs_a_value_or_array_in_place_of_a_structure(string patch)
+    {
+        FakeLogger<DesiredPropertyHandler> logger = new();
+        var (handler, channels) = CreateHandler(logger, "MyGroup.MyValue", "OtherValue");
+
+        var values = handler.HandleDesiredProperty(DeviceName, new(patch));
+
+        values.Should().ContainSingle().Which.Channel.Should().Be(channels["OtherValue"]);
+        logger.LatestRecord.Message.Should().Match("*'MyGroup.MyValue'*'MyDevice'*");
+    }
+
+    private static (DesiredPropertyHandler Handler, Dictionary<string, string> Channels) CreateHandler(params string[] valuePaths)
+        => CreateHandler(NullLogger.Instance, valuePaths);
+
+    private static (DesiredPropertyHandler Handler, Dictionary<string, string> Channels) CreateHandler(ILogger logger, params string[] valuePaths)
     {
         Node deviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = DeviceName, };
         Node otherDeviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = "OtherDevice", };
         Node propertiesNode = new() { Id = Guid.NewGuid(), ParentId = deviceNode.Id, DesignId = AzureIotHubNodeDesignId.Properties, };
         var desiredNodeId = Guid.NewGuid();
-        var valueNodes = valueNames.Select(name =>
+        Dictionary<string, Node> groupNodes = [];
+        Dictionary<string, Node> valueNodes = [];
+
+        foreach (var path in valuePaths)
         {
-            var id = Guid.NewGuid();
-            return new Node
+            var parts = path.Split('.');
+            var parentId = desiredNodeId;
+
+            foreach (var group in parts[..^1])
             {
-                Id = id,
-                ParentId = desiredNodeId,
-                DesignId = AzureIotHubNodeDesignId.JsonStructure,
-                Name = name,
-                AffectedChannels = [id.ToString(),],
-                ValueType = typeof(int),
-            };
-        }).ToArray();
+                if (!groupNodes.TryGetValue(group, out var groupNode))
+                {
+                    groupNode = new() { Id = Guid.NewGuid(), ParentId = parentId, DesignId = AzureIotHubNodeDesignId.JsonStructure, Name = group, };
+                    groupNodes.Add(group, groupNode);
+                }
+
+                parentId = groupNode.Id;
+            }
+
+            var id = Guid.NewGuid();
+            valueNodes.Add(path, new() { Id = id, ParentId = parentId, DesignId = AzureIotHubNodeDesignId.JsonStructure, Name = parts[^1], AffectedChannels = [id.ToString(),], ValueType = typeof(int), });
+        }
+
         Node desiredNode = new()
         {
             Id = desiredNodeId,
             ParentId = propertiesNode.Id,
             DesignId = AzureIotHubNodeDesignId.Desired,
-            TransferredChannels = [.. valueNodes.Select(n => n.Id.ToString()),],
+            TransferredChannels = [.. valueNodes.Values.Select(n => n.Id.ToString()),],
         };
-        AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, otherDeviceNode, propertiesNode, desiredNode, .. valueNodes,], };
+        AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, otherDeviceNode, propertiesNode, desiredNode, .. groupNodes.Values, .. valueNodes.Values,], };
 
-        return (new(communication, TimeProvider.System, new()), valueNodes.ToDictionary(n => n.Name, n => n.Id.ToString()));
+        return (new(communication, TimeProvider.System, new(), logger), valueNodes.ToDictionary(n => n.Key, n => n.Value.Id.ToString()));
     }
 }

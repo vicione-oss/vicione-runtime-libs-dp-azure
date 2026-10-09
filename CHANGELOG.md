@@ -12,6 +12,7 @@
 - Update `Microsoft.Azure.Devices.Client` to `1.42.4`
 - Limit the tree depth of both DataPorts to 64
 - Write property display names in sentence case and explain `Bulk size`, `Max pending messages` and the EventGrid properties in their descriptions
+- **Breaking:** `AzureIotHubDataPortIncoming` takes an `ILogger<AzureIotHubDataPortIncoming>` in its constructor
 - Update `ViciOne.Suite.DataPort` to `1.0.0`
 
 ### Fixed
@@ -22,6 +23,7 @@
 - Reject `.`, `$` and spaces in IoT Hub JSON structure and data point names
 - Send EventGrid event times in UTC and use the current time for values without a timestamp, so the first event after a deploy is no longer lost east of UTC
 - Write `NaN` and `±Infinity` as the strings `"NaN"`, `"Infinity"` and `"-Infinity"` in IoT Hub telemetry, reported properties and EventGrid events instead of failing the whole message
+- Apply IoT Hub desired-property patches that contain only some of the configured keys, and skip a desired value that does not match its type with a warning instead of dropping the whole patch
 
 ## 0.32.0 - 2026-05-11
 

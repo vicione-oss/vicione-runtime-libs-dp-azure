@@ -13,4 +13,7 @@ internal static partial class AzureIotHubLog
 
     [LoggerMessage(2, LogLevel.Error, "Cannot publish values. Queue will be cleared.")]
     internal static partial void PublishWithCompletedQueueFailed(this ILogger logger);
+
+    [LoggerMessage(3, LogLevel.Warning, "Cannot read desired property '{Property}' of device '{DeviceId}'. The value is skipped.")]
+    internal static partial void DesiredPropertyUnreadable(this ILogger logger, string deviceId, string property, Exception exception);
 }

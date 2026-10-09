@@ -86,7 +86,7 @@ public class AzureIotHubDataPortIncoming_
                 },
             ];
 
-            await using AzureIotHubDataPortIncoming incoming = new(system.Communication with { Nodes = nodes, }, AssemblyLoadContext.Default);
+            await using AzureIotHubDataPortIncoming incoming = new(system.Communication with { Nodes = nodes, }, AssemblyLoadContext.Default, Substitute.For<ILogger<AzureIotHubDataPortIncoming>>());
 
             ConcurrentBag<ExternalValue> externalValues = [];
             incoming.Received += v =>

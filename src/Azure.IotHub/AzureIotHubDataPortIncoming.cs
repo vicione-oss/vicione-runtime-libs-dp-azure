@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Devices.Shared;
+using Microsoft.Extensions.Logging;
 using ViciOne.ManagedEngine.ExternalCommunication;
 
 namespace ViciOne.Suite.DataPort;
@@ -20,15 +21,16 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
 
     public event Action<IReadOnlyCollection<ExternalValue>>? Received;
 
-    public AzureIotHubDataPortIncoming(AzureIotHubDataPortCommunication communication, AssemblyLoadContext assemblyLoadContext) : this(communication, assemblyLoadContext, DeviceClientPool.Instance)
+    public AzureIotHubDataPortIncoming(AzureIotHubDataPortCommunication communication, AssemblyLoadContext assemblyLoadContext, ILogger<AzureIotHubDataPortIncoming> logger)
+        : this(communication, assemblyLoadContext, DeviceClientPool.Instance, logger)
     { }
 
-    internal AzureIotHubDataPortIncoming(AzureIotHubDataPortCommunication communication, AssemblyLoadContext assemblyLoadContext, IDeviceClientPool deviceClientPool, TimeProvider? timeProvider = null)
+    internal AzureIotHubDataPortIncoming(AzureIotHubDataPortCommunication communication, AssemblyLoadContext assemblyLoadContext, IDeviceClientPool deviceClientPool, ILogger<AzureIotHubDataPortIncoming> logger, TimeProvider? timeProvider = null)
     {
         _communication = communication;
         _deviceClientPool = deviceClientPool;
         _serializerOptions = JsonSetup.CreatePreserveTypeOptions(assemblyLoadContext);
-        _desiredPropertyHandler = new(communication, timeProvider, _serializerOptions);
+        _desiredPropertyHandler = new(communication, timeProvider, _serializerOptions, logger);
     }
 
     public async Task ConnectAsync(CancellationToken cancellationToken)
