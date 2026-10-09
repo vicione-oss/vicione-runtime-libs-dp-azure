@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.Devices.Client.Exceptions;
 using Microsoft.Azure.Devices.Shared;
 using Microsoft.Extensions.Logging;
 using ViciOne.ManagedEngine.ExternalCommunication;
@@ -11,7 +12,6 @@ namespace ViciOne.Suite.DataPort;
 
 public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication<AzureIotHubDataPortCommunication>, IAsyncDisposable
 {
-    private readonly TaskPipeline<bool> _taskPipeline;
     private readonly Func<CancellationToken, Task<IDictionary<Guid, VirtualDeviceClient>>> _createDeviceClients;
     private readonly TelemetryHandler _telemetryHandler;
     private readonly ReportedPropertyHandler _reportedPropertyHandler;
@@ -35,19 +35,6 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         _queueSize = communication.MaxPendingMessages;
         _bulkSize = communication.BulkSize;
         _logger = logger;
-        _taskPipeline = new(
-            3,
-            retrycount =>
-            {
-                return retrycount switch
-                {
-                    0 => TimeSpan.Zero,
-                    1 => TimeSpan.FromSeconds(1),
-                    2 => TimeSpan.FromSeconds(5),
-                    _ => TimeSpan.FromSeconds(10),
-                };
-            },
-            false);
     }
 
     public async Task ConnectAsync(CancellationToken cancellationToken)
@@ -69,23 +56,15 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         if (_queue is null)
             throw new InvalidOperationException("Queue must be initialized.");
 
-        await foreach (var items in _queue.GetAsyncEnumerator(_bulkSize))
-            await ProcessBatchAsync(items, _queue, PublishAsync, _taskPipeline, _logger.PublishBatchFailed, _logger.PublishWithCompletedQueueFailed).ConfigureAwait(false);
-    }
-
-    private static async Task ProcessBatchAsync<T>(List<T> items, ManagedQueue<T> queue, Func<List<T>, CancellationToken, ValueTask<bool>> publishAsync, TaskPipeline<bool> resiliencePipeline, Action publishFailed, Action publishWithCompletedQueueFailed) where T : notnull
-    {
-        if (!await resiliencePipeline.ExecuteAsync(cancellationToken => publishAsync(items, cancellationToken), CancellationToken.None).ConfigureAwait(false))
+        await foreach (var batch in _queue.GetAsyncEnumerator(_bulkSize))
         {
-            if (queue.IsAddingCompleted)
+            foreach (var values in batch)
             {
-                publishWithCompletedQueueFailed();
-                queue.Clear();
-            }
-            else
-            {
-                publishFailed();
-                queue.Prepend(items);
+                if (await PublishAsync(values).ConfigureAwait(false))
+                    continue;
+
+                _queue.Clear();
+                break;
             }
         }
     }
@@ -131,21 +110,69 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         }
     }
 
-    private async Task SendEventsToDevice(Guid deviceId, Message message, CancellationToken cancellationToken)
+    private Task SendEventsToDevice(Guid deviceNodeId, Func<Message> createMessage, CancellationToken cancellationToken)
+        => DeliverAsync(deviceNodeId, async deviceClient =>
+        {
+            using var message = createMessage();
+            await deviceClient.SendEventAsync(message, cancellationToken).ConfigureAwait(false);
+        });
+
+    private Task UpdateReportedProperties(Guid deviceNodeId, TwinCollection collection, CancellationToken cancellationToken)
+        => DeliverAsync(deviceNodeId, deviceClient => deviceClient.UpdateReportedPropertiesAsync(collection, cancellationToken));
+
+    // Failures are retried until the queue completes; nothing goes back into the queue, so data the hub already
+    // accepted is never sent twice. A rejection of the data itself is permanent, and retrying it would block every
+    // later value.
+    private async Task DeliverAsync(Guid deviceNodeId, Func<IDeviceClient, Task> send)
     {
         if (_nodeDeviceClients is null)
             throw new InvalidOperationException("Device clients not initialized.");
 
-        await _nodeDeviceClients[deviceId].InternalDeviceClient.SendEventAsync(message, cancellationToken).ConfigureAwait(false);
+        var deviceClient = _nodeDeviceClients[deviceNodeId];
+
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await send(deviceClient.InternalDeviceClient).ConfigureAwait(false);
+                return;
+            }
+            catch (Exception ex) when (IsRejection(ex))
+            {
+                _logger.DataRejected(deviceClient.DeviceId, ex);
+                return;
+            }
+            catch (Exception ex) when (_queue is null or { IsAddingCompleted: true })
+            {
+                throw new OperationCanceledException("Delivery stopped because the DataPort disconnects.", ex);
+            }
+            catch (Exception ex)
+            {
+                var delay = GetRetryDelay(attempt);
+                _logger.PublishingFailed(deviceClient.DeviceId, delay, ex);
+                await Task.Delay(delay).ConfigureAwait(false);
+            }
+        }
     }
 
-    private async Task UpdateReportedProperties(Guid deviceId, TwinCollection collection, CancellationToken cancellationToken)
-    {
-        if (_nodeDeviceClients is null)
-            throw new InvalidOperationException("Device clients not initialized.");
+    // The SDK reports a refused message or patch as one of these; a plain IotHubException carries the 4xx response
+    // to a twin request. Its subclasses for a suspended hub, the daily quota, an unknown device or a refused key are
+    // about the hub or the device, not the data, and the data stays queued until the hub accepts it again.
+    private static bool IsRejection(Exception exception)
+        => exception switch
+        {
+            MessageTooLargeException or ArgumentException => true,
+            IotHubException { IsTransient: false } iotHubException => iotHubException.GetType() == typeof(IotHubException),
+            _ => false,
+        };
 
-        await _nodeDeviceClients[deviceId].InternalDeviceClient.UpdateReportedPropertiesAsync(collection, cancellationToken).ConfigureAwait(false);
-    }
+    private static TimeSpan GetRetryDelay(int attempt)
+        => attempt switch
+        {
+            0 => TimeSpan.FromSeconds(1),
+            1 => TimeSpan.FromSeconds(5),
+            _ => TimeSpan.FromSeconds(10),
+        };
 
     public Task SendAsync(ulong engineCycle, IReadOnlyCollection<ExternalValue> values, CancellationToken cancellationToken)
     {
@@ -154,20 +181,21 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         return Task.CompletedTask;
     }
 
-    private async ValueTask<bool> PublishAsync(IReadOnlyCollection<IReadOnlyCollection<ExternalValue>> valuesCollection, CancellationToken cancellationToken)
+    private async Task<bool> PublishAsync(IReadOnlyCollection<ExternalValue> values)
     {
         try
         {
-            foreach (var values in valuesCollection)
-            {
-                await _telemetryHandler.Process(values, cancellationToken).ConfigureAwait(false);
-                await _reportedPropertyHandler.Process(values, cancellationToken).ConfigureAwait(false);
-            }
+            await _telemetryHandler.Process(values, CancellationToken.None).ConfigureAwait(false);
+            await _reportedPropertyHandler.Process(values, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.PublishWithCompletedQueueFailed(ex.InnerException ?? ex);
+            return false;
         }
         catch (Exception ex)
         {
-            _logger.PublishingFailed(ex);
-            return false;
+            _logger.ProcessingValuesFailed(ex);
         }
 
         return true;

@@ -16,10 +16,10 @@ namespace ViciOne.Suite.DataPort;
 internal sealed class TelemetryHandler : UnspecificTreeHandlerOutgoing<TelemetryHandler.DeviceData>
 {
     private readonly AzureIotHubDataPortCommunication _communication;
-    private readonly Func<Guid, Message, CancellationToken, Task> _sendTelemetry;
+    private readonly Func<Guid, Func<Message>, CancellationToken, Task> _sendTelemetry;
     private readonly Dictionary<Guid, Guid> _transferredDeviceNodes = [];
 
-    internal TelemetryHandler(AzureIotHubDataPortCommunication communication, Func<Guid, Message, CancellationToken, Task> sendTelemetry)
+    internal TelemetryHandler(AzureIotHubDataPortCommunication communication, Func<Guid, Func<Message>, CancellationToken, Task> sendTelemetry)
     {
         _communication = communication;
         _sendTelemetry = sendTelemetry;
@@ -44,32 +44,34 @@ internal sealed class TelemetryHandler : UnspecificTreeHandlerOutgoing<Telemetry
     protected override DeviceData HandleGroupNode(INode node, JsonObject data, JsonObject meta, IReadOnlyCollection<ExternalValue> values)
         => new(
             _transferredDeviceNodes[node.Id],
-#pragma warning disable CA2000 // Objekte verwerfen, bevor Bereich verloren geht. Wird nach dem Senden verworfen.
-            new(JsonSerializer.SerializeToUtf8Bytes(data, JsonSetup.OutgoingOptions))
+            JsonSerializer.SerializeToUtf8Bytes(data, JsonSetup.OutgoingOptions),
+            new Dictionary<string, string>
             {
-                ContentType = MediaTypeNames.Application.Json,
-                ContentEncoding = Encoding.UTF8.WebName,
-                Properties =
-                {
-                    { "type", JsonSerializer.Serialize(meta) },
-                    { "timestamp", values.Max(v => v.Timestamp).ToString("O") },
-                    { "validity", values.Min(v => v.Validity).ToString(CultureInfo.InvariantCulture) },
-                },
+                { "type", JsonSerializer.Serialize(meta) },
+                { "timestamp", values.Max(v => v.Timestamp).ToString("O") },
+                { "validity", values.Min(v => v.Validity).ToString(CultureInfo.InvariantCulture) },
             });
-#pragma warning restore CA2000 // Objekte verwerfen, bevor Bereich verloren geht
 
     protected override DeviceData HandleSingleNode(INode node, ExternalValue value)
         => throw new NotImplementedException();
 
     protected override async Task SendValue(DeviceData value, CancellationToken cancellationToken)
-        => await _sendTelemetry(value.DeviceId, value.Data, cancellationToken).ConfigureAwait(false);
+        => await _sendTelemetry(value.DeviceId, value.CreateMessage, cancellationToken).ConfigureAwait(false);
 
     internal async Task Process(IReadOnlyCollection<ExternalValue> values, CancellationToken cancellationToken)
         => await Send(values.Where(v => ChannelTransferredNodes.ContainsKey(v.Channel)), cancellationToken).ConfigureAwait(false);
 
-    internal sealed record class DeviceData(Guid DeviceId, Message Data) : IDisposable
+    // A message body can be read only once, so every send attempt needs its own message.
+    internal sealed record class DeviceData(Guid DeviceId, byte[] Body, IReadOnlyDictionary<string, string> Properties)
     {
-        public void Dispose()
-            => Data.Dispose();
+        internal Message CreateMessage()
+        {
+            Message message = new(Body) { ContentType = MediaTypeNames.Application.Json, ContentEncoding = Encoding.UTF8.WebName, };
+
+            foreach (var (key, value) in Properties)
+                message.Properties.Add(key, value);
+
+            return message;
+        }
     }
 }

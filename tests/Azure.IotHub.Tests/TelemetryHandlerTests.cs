@@ -31,7 +31,7 @@ public class TelemetryHandler_
             AffectedChannels = [telemetryValueNodeId.ToString(),],
         };
         AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, telemetryNode, telemetryValueNode], };
-        List<(Guid DeviceId, Message)> values = [];
+        List<(Guid DeviceId, Func<Message>)> values = [];
         TelemetryHandler telemetryHandler = new(communication, (d, m, _) =>
         {
             values.Add((d, m));
@@ -47,7 +47,7 @@ public class TelemetryHandler_
             },
         ], TestContext.Current.CancellationToken);
 
-        var (deviceId, message) = values.Should().ContainSingle().Which;
+        var (deviceId, _) = values.Should().ContainSingle().Which;
         deviceId.Should().Be(deviceNode.Id);
     }
 }
@@ -60,14 +60,36 @@ public class TelemetryHandler_Process
     [InlineData(float.NegativeInfinity, "-Infinity")]
     public async Task Writes_non_finite_numbers_as_strings_Async(object value, string expected)
     {
-        var (handler, channel, bodies) = CreateHandler();
+        var (handler, channel, createMessages) = CreateHandler();
 
         await handler.Process([new() { Channel = channel, Value = value, }], TestContext.Current.CancellationToken);
 
-        bodies.Should().ContainSingle().Which.Should().Be($"{{\"MyValue\":\"{expected}\"}}");
+        ReadBody(createMessages.Should().ContainSingle().Which).Should().Be($"{{\"MyValue\":\"{expected}\"}}");
     }
 
-    private static (TelemetryHandler Handler, string Channel, List<string> Bodies) CreateHandler()
+    [Fact]
+    public async Task Hands_out_a_new_message_with_the_same_content_for_every_send_attempt_Async()
+    {
+        var (handler, channel, createMessages) = CreateHandler();
+
+        await handler.Process([new() { Channel = channel, Value = 23, Timestamp = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), }], TestContext.Current.CancellationToken);
+
+        var createMessage = createMessages.Should().ContainSingle().Which;
+        using var first = createMessage();
+        using var second = createMessage();
+        second.Should().NotBeSameAs(first);
+        Encoding.UTF8.GetString(second.GetBytes()).Should().Be(Encoding.UTF8.GetString(first.GetBytes())).And.Be("{\"MyValue\":23}");
+        second.Properties.Should().BeEquivalentTo(first.Properties).And.ContainKey("timestamp");
+    }
+
+    private static string ReadBody(Func<Message> createMessage)
+    {
+        using var message = createMessage();
+
+        return Encoding.UTF8.GetString(message.GetBytes());
+    }
+
+    private static (TelemetryHandler Handler, string Channel, List<Func<Message>> CreateMessages) CreateHandler()
     {
         Node deviceNode = new() { Id = Guid.NewGuid(), ParentId = null, DesignId = AzureIotHubNodeDesignId.Device, };
         var telemetryValueNodeId = Guid.NewGuid();
@@ -86,13 +108,13 @@ public class TelemetryHandler_Process
             Name = "MyValue",
             AffectedChannels = [telemetryValueNodeId.ToString(),],
         };
-        List<string> bodies = [];
-        TelemetryHandler handler = new(new() { Nodes = [deviceNode, telemetryNode, telemetryValueNode,], }, (_, m, _) =>
+        List<Func<Message>> createMessages = [];
+        TelemetryHandler handler = new(new() { Nodes = [deviceNode, telemetryNode, telemetryValueNode,], }, (_, createMessage, _) =>
         {
-            bodies.Add(Encoding.UTF8.GetString(m.GetBytes()));
+            createMessages.Add(createMessage);
             return Task.CompletedTask;
         });
 
-        return (handler, telemetryValueNodeId.ToString(), bodies);
+        return (handler, telemetryValueNodeId.ToString(), createMessages);
     }
 }

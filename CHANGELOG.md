@@ -25,6 +25,8 @@
 - Write `NaN` and `±Infinity` as the strings `"NaN"`, `"Infinity"` and `"-Infinity"` in IoT Hub telemetry, reported properties and EventGrid events instead of failing the whole message
 - Apply IoT Hub desired-property patches that contain only some of the configured keys, and skip a desired value that does not match its type with a warning instead of dropping the whole patch
 - Read the IoT Hub device twin on connect, so desired properties set before a deploy or while the edge was offline reach the engine
+- Log and drop IoT Hub telemetry or reported properties the hub rejects, instead of re-queuing them forever and blocking every later value
+- Retry only the failed IoT Hub message after a transient error, so telemetry the hub already accepted is never sent twice
 - Publish values queued before the send loop of the IoT Hub and EventGrid DataPorts starts, and a backlog larger than `Bulk size`, without waiting for the next value
 
 ## 0.32.0 - 2026-05-11
