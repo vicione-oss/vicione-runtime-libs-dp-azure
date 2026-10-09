@@ -20,6 +20,7 @@
 - Mask the EventGrid topic access key input
 - Restrict IoT Hub `Telemetry` to outbound
 - Reject `.`, `$` and spaces in IoT Hub JSON structure and data point names
+- Send EventGrid event times in UTC and use the current time for values without a timestamp, so the first event after a deploy is no longer lost east of UTC
 
 ## 0.32.0 - 2026-05-11
 
