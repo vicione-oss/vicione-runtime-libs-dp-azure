@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.Messaging.EventGrid;
@@ -11,6 +12,8 @@ namespace ViciOne.Suite.DataPort;
 
 internal sealed class EventGridEventHandler
 {
+    private static readonly JsonSerializerOptions s_serializerOptions = new() { NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals, };
+
     private readonly Dictionary<string, INode> _channelTransferredNodes;
     private readonly Dictionary<string, INode[]> _channelJsonNodeRoutes;
     private readonly Func<IEnumerable<EventGridEvent>, CancellationToken, Task> _sendGridEvents;
@@ -47,7 +50,7 @@ internal sealed class EventGridEventHandler
     {
         var (data, _) = NodeValueFactory.CreateJsonStructure(_channelJsonNodeRoutes, values);
 
-        return new(values.Key.Name, values.Key.GetProperty(AzureEventGridTopicProperty.EventType).Value.ToString(), values.Key.GetProperty(AzureEventGridTopicProperty.DataVersion).Value.ToString(), JsonSerializer.Serialize(data))
+        return new(values.Key.Name, values.Key.GetProperty(AzureEventGridTopicProperty.EventType).Value.ToString(), values.Key.GetProperty(AzureEventGridTopicProperty.DataVersion).Value.ToString(), JsonSerializer.Serialize(data, s_serializerOptions))
         {
             EventTime = GetEventTime(values) ?? _timeProvider.GetUtcNow(),
         };

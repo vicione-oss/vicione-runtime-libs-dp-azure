@@ -21,6 +21,7 @@
 - Restrict IoT Hub `Telemetry` to outbound
 - Reject `.`, `$` and spaces in IoT Hub JSON structure and data point names
 - Send EventGrid event times in UTC and use the current time for values without a timestamp, so the first event after a deploy is no longer lost east of UTC
+- Write `NaN` and `±Infinity` as the strings `"NaN"`, `"Infinity"` and `"-Infinity"` in IoT Hub telemetry, reported properties and EventGrid events instead of failing the whole message
 
 ## 0.32.0 - 2026-05-11
 

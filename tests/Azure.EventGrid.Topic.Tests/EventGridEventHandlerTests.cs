@@ -87,6 +87,19 @@ public class EventGridEventHandler_Process
         events.Should().ContainSingle().Which.EventTime.Should().BeExactly(timeProvider.Start);
     }
 
+    [Theory]
+    [InlineData(double.NaN, "NaN")]
+    [InlineData(double.PositiveInfinity, "Infinity")]
+    [InlineData(float.NegativeInfinity, "-Infinity")]
+    public async Task Writes_non_finite_numbers_as_strings_Async(object value, string expected)
+    {
+        var (handler, channel, events) = CreateHandler();
+
+        await handler.Process([new() { Channel = channel, Value = value, }], TestContext.Current.CancellationToken);
+
+        events.Should().ContainSingle().Which.Data.ToObjectFromJson<string>().Should().Be($"{{\"value\":\"{expected}\"}}");
+    }
+
     private static (EventGridEventHandler Handler, string Channel, List<EventGridEvent> Events) CreateHandler(TimeProvider? timeProvider = null)
     {
         var channel = Guid.NewGuid().ToString();

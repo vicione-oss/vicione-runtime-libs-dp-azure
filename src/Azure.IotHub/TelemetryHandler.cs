@@ -45,7 +45,7 @@ internal sealed class TelemetryHandler : UnspecificTreeHandlerOutgoing<Telemetry
         => new(
             _transferredDeviceNodes[node.Id],
 #pragma warning disable CA2000 // Objekte verwerfen, bevor Bereich verloren geht. Wird nach dem Senden verworfen.
-            new(JsonSerializer.SerializeToUtf8Bytes(data))
+            new(JsonSerializer.SerializeToUtf8Bytes(data, JsonSetup.OutgoingOptions))
             {
                 ContentType = MediaTypeNames.Application.Json,
                 ContentEncoding = Encoding.UTF8.WebName,

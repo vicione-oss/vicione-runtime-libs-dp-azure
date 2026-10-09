@@ -44,7 +44,7 @@ internal sealed class ReportedPropertyHandler : UnspecificTreeHandlerOutgoing<Re
     }
 
     protected override DeviceData HandleGroupNode(INode node, JsonObject data, JsonObject meta, IReadOnlyCollection<ExternalValue> values)
-        => new(_transferredDeviceNodes[node.Id], new(JsonSerializer.Serialize(data)));
+        => new(_transferredDeviceNodes[node.Id], new(JsonSerializer.Serialize(data, JsonSetup.OutgoingOptions)));
 
     protected override DeviceData HandleSingleNode(INode node, ExternalValue value)
         => throw new NotImplementedException();
