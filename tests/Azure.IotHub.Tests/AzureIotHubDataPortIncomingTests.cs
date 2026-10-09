@@ -41,6 +41,33 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
     }
 
     [Fact]
+    public async Task Keeps_a_patch_newer_than_the_twin_read_on_connect_Async()
+    {
+        var deviceClient = Substitute.For<IDeviceClient>();
+        DesiredPropertyUpdateCallback? onPatch = null;
+        object? patchContext = null;
+        deviceClient.When(c => c.SetDesiredPropertyUpdateCallbackAsync(Arg.Any<DesiredPropertyUpdateCallback>(), Arg.Any<object>(), Arg.Any<CancellationToken>())).Do(call =>
+        {
+            onPatch = call.ArgAt<DesiredPropertyUpdateCallback>(0);
+            patchContext = call.ArgAt<object>(1);
+        });
+        deviceClient.GetTwinAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            await onPatch!(new("""{ "MyValue": 2, "$version": 5 }"""), patchContext!);
+            return new Twin { Properties = new() { Desired = new("""{ "MyValue": 1, "$version": 4 }"""), }, };
+        });
+        using DeviceClientPool pool = new((_, _) => deviceClient);
+        var (incoming, _) = CreateIncoming(pool, NullLogger<AzureIotHubDataPortIncoming>.Instance, "MyDevice");
+        await using var _ = incoming;
+        List<ExternalValue> received = [];
+        incoming.Received += received.AddRange;
+
+        await incoming.ConnectAsync(TestContext.Current.CancellationToken);
+
+        received.Should().ContainSingle().Which.Value.Should().Be(2);
+    }
+
+    [Fact]
     public async Task Does_not_read_the_twin_of_a_device_without_desired_properties_Async()
     {
         var deviceClient = Substitute.For<IDeviceClient>();

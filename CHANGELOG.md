@@ -25,6 +25,7 @@
 - Write `NaN` and `±Infinity` as the strings `"NaN"`, `"Infinity"` and `"-Infinity"` in IoT Hub telemetry, reported properties and EventGrid events instead of failing the whole message
 - Apply IoT Hub desired-property patches that contain only some of the configured keys, and skip a desired value that does not match its type with a warning instead of dropping the whole patch
 - Read the IoT Hub device twin on connect, so desired properties set before a deploy or while the edge was offline reach the engine
+- Keep a desired-property patch that arrives while the twin is read on connect, instead of overwriting it with the older twin values
 - Log and drop IoT Hub telemetry or reported properties the hub rejects, instead of re-queuing them forever and blocking every later value
 - Retry only the failed IoT Hub message after a transient error, so telemetry the hub already accepted is never sent twice
 - Finish an IoT Hub disconnect within 10 seconds while the hub is unreachable, dropping the values still queued, instead of waiting forever

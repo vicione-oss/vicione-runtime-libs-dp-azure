@@ -16,6 +16,8 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
     private readonly DesiredPropertyHandler _desiredPropertyHandler;
     private readonly JsonSerializerOptions _serializerOptions;
     private readonly ILogger _logger;
+    private readonly Lock _desiredLock = new();
+    private readonly Dictionary<string, long> _appliedDesiredVersions = [];
 
     private IDictionary<Guid, VirtualDeviceClient>? _nodeDeviceClients;
 
@@ -58,7 +60,7 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
         try
         {
             var twin = await deviceClient.InternalDeviceClient.GetTwinAsync(cancellationToken).ConfigureAwait(false);
-            Received?.Invoke(_desiredPropertyHandler.HandleDesiredProperty(deviceClient.DeviceId, twin.Properties.Desired));
+            ReceiveDesiredProperties(deviceClient.DeviceId, twin.Properties.Desired);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -80,6 +82,9 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
 
         _nodeDeviceClients.Clear();
         _nodeDeviceClients = null;
+
+        lock (_desiredLock)
+            _appliedDesiredVersions.Clear();
     }
 
     private void OnDesiredPropertyUpdate(VirtualDeviceClient deviceClient, TwinCollection twinCollection)
@@ -87,7 +92,21 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
         if (_nodeDeviceClients is null)
             throw new InvalidOperationException("Device clients are not initialized.");
 
-        Received?.Invoke(_desiredPropertyHandler.HandleDesiredProperty(deviceClient.DeviceId, twinCollection));
+        ReceiveDesiredProperties(deviceClient.DeviceId, twinCollection);
+    }
+
+    // The twin read on connect and a patch arrive on different threads and in either order; $version tells which
+    // one is newer. A collection without $version reports 0 and is always applied.
+    private void ReceiveDesiredProperties(string deviceId, TwinCollection desired)
+    {
+        lock (_desiredLock)
+        {
+            if (desired.Version > 0 && _appliedDesiredVersions.TryGetValue(deviceId, out var appliedVersion) && desired.Version <= appliedVersion)
+                return;
+
+            _appliedDesiredVersions[deviceId] = desired.Version;
+            Received?.Invoke(_desiredPropertyHandler.HandleDesiredProperty(deviceId, desired));
+        }
     }
 
     public async ValueTask DisposeAsync()
