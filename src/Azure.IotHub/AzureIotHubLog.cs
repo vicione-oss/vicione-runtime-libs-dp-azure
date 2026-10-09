@@ -22,4 +22,7 @@ internal static partial class AzureIotHubLog
 
     [LoggerMessage(6, LogLevel.Error, "Cannot process values for Azure IoT Hub. The values of this engine cycle are dropped.")]
     internal static partial void ProcessingValuesFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(7, LogLevel.Warning, "Reported property '{Property}' is skipped: device twins accept integers only between -4503599627370496 and 4503599627370495, but the value is {Value}.")]
+    internal static partial void ReportedIntegerOutOfRange(this ILogger logger, string property, object? value);
 }

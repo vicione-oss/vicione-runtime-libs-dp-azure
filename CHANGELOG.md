@@ -27,6 +27,7 @@
 - Read the IoT Hub device twin on connect, so desired properties set before a deploy or while the edge was offline reach the engine
 - Log and drop IoT Hub telemetry or reported properties the hub rejects, instead of re-queuing them forever and blocking every later value
 - Retry only the failed IoT Hub message after a transient error, so telemetry the hub already accepted is never sent twice
+- Skip `Int64` and `UInt64` reported properties outside the device twin range of `-4503599627370496` to `4503599627370495` with a warning, so the rest of the patch is still accepted
 - Publish values queued before the send loop of the IoT Hub and EventGrid DataPorts starts, and a backlog larger than `Bulk size`, without waiting for the next value
 
 ## 0.32.0 - 2026-05-11

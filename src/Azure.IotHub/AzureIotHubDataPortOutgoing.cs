@@ -31,7 +31,7 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
     {
         _createDeviceClients = createDeviceClients;
         _telemetryHandler = new(communication, SendEventsToDevice);
-        _reportedPropertyHandler = new(communication, UpdateReportedProperties);
+        _reportedPropertyHandler = new(communication, UpdateReportedProperties, logger);
         _queueSize = communication.MaxPendingMessages;
         _bulkSize = communication.BulkSize;
         _logger = logger;
