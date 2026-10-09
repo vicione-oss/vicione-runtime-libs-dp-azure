@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
+using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.Devices.Shared;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,20 +20,20 @@ using Xunit;
 
 namespace ViciOne.Suite.DataPort;
 
-public class AzureIotHubDataPortIncoming_ReceiveTwinDesiredPropertiesAsync
+public class AzureIotHubDataPortIncoming_ConnectAsync
 {
     [Fact]
     public async Task Raises_the_desired_values_already_in_the_twin_Async()
     {
         var deviceClient = Substitute.For<IDeviceClient>();
         deviceClient.GetTwinAsync(Arg.Any<CancellationToken>()).Returns(new Twin { Properties = new() { Desired = new("""{ "MyValue": 23, "$version": 4 }"""), }, });
-        var (incoming, channel) = CreateIncoming(NullLogger<AzureIotHubDataPortIncoming>.Instance);
+        using DeviceClientPool pool = new((_, _) => deviceClient);
+        var (incoming, channel) = CreateIncoming(pool, NullLogger<AzureIotHubDataPortIncoming>.Instance, "MyDevice");
+        await using var _ = incoming;
         List<ExternalValue> received = [];
         incoming.Received += received.AddRange;
-        using DeviceClientPool pool = new((_, _) => deviceClient);
-        await using VirtualDeviceClient virtualClient = new("MyDevice", deviceClient, pool);
 
-        await incoming.ReceiveTwinDesiredPropertiesAsync(virtualClient, TestContext.Current.CancellationToken);
+        await incoming.ConnectAsync(TestContext.Current.CancellationToken);
 
         var value = received.Should().ContainSingle().Which;
         value.Channel.Should().Be(channel);
@@ -43,32 +44,33 @@ public class AzureIotHubDataPortIncoming_ReceiveTwinDesiredPropertiesAsync
     public async Task Does_not_read_the_twin_of_a_device_without_desired_properties_Async()
     {
         var deviceClient = Substitute.For<IDeviceClient>();
-        var (incoming, _) = CreateIncoming(NullLogger<AzureIotHubDataPortIncoming>.Instance);
         using DeviceClientPool pool = new((_, _) => deviceClient);
-        await using VirtualDeviceClient virtualClient = new("OtherDevice", deviceClient, pool);
+        var (incoming, _) = CreateIncoming(pool, NullLogger<AzureIotHubDataPortIncoming>.Instance, "OtherDevice");
+        await using var _ = incoming;
 
-        await incoming.ReceiveTwinDesiredPropertiesAsync(virtualClient, TestContext.Current.CancellationToken);
+        await incoming.ConnectAsync(TestContext.Current.CancellationToken);
 
         await deviceClient.DidNotReceive().GetTwinAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Logs_a_failed_twin_read_Async()
+    public async Task Connects_and_logs_if_the_twin_cannot_be_read_Async()
     {
         var deviceClient = Substitute.For<IDeviceClient>();
         deviceClient.GetTwinAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new TimeoutException());
         FakeLogger<AzureIotHubDataPortIncoming> logger = new();
-        var (incoming, _) = CreateIncoming(logger);
         using DeviceClientPool pool = new((_, _) => deviceClient);
-        await using VirtualDeviceClient virtualClient = new("MyDevice", deviceClient, pool);
+        var (incoming, _) = CreateIncoming(pool, logger, "MyDevice");
+        await using var _ = incoming;
 
-        await incoming.ReceiveTwinDesiredPropertiesAsync(virtualClient, TestContext.Current.CancellationToken);
+        await incoming.ConnectAsync(TestContext.Current.CancellationToken);
 
+        await deviceClient.Received(1).OpenAsync(Arg.Any<CancellationToken>());
         logger.LatestRecord.Level.Should().Be(LogLevel.Error);
         logger.LatestRecord.Message.Should().Match("*twin*'MyDevice'*");
     }
 
-    private static (AzureIotHubDataPortIncoming Incoming, string Channel) CreateIncoming(ILogger<AzureIotHubDataPortIncoming> logger)
+    private static (AzureIotHubDataPortIncoming Incoming, string Channel) CreateIncoming(DeviceClientPool pool, ILogger<AzureIotHubDataPortIncoming> logger, string connectedDevice)
     {
         Node deviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = "MyDevice", };
         Node otherDeviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = "OtherDevice", };
@@ -91,8 +93,18 @@ public class AzureIotHubDataPortIncoming_ReceiveTwinDesiredPropertiesAsync
             ValueType = typeof(int),
         };
         AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, otherDeviceNode, propertiesNode, desiredNode, valueNode,], };
+        var connectedNode = connectedDevice == deviceNode.Name ? deviceNode : otherDeviceNode;
 
-        return (new(communication, AssemblyLoadContext.Default, Substitute.For<IDeviceClientPool>(), logger), valueNodeId.ToString());
+        AzureIotHubDataPortIncoming incoming = new(
+            communication,
+            AssemblyLoadContext.Default,
+            async cancellationToken => new Dictionary<Guid, VirtualDeviceClient>
+            {
+                [connectedNode.Id] = await pool.Register("hub", connectedNode.Name, Substitute.For<IAuthenticationMethod>(), cancellationToken),
+            },
+            logger);
+
+        return (incoming, valueNodeId.ToString());
     }
 }
 

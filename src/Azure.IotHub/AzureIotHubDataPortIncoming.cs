@@ -12,8 +12,7 @@ namespace ViciOne.Suite.DataPort;
 
 public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication<AzureIotHubDataPortCommunication>, IAsyncDisposable
 {
-    private readonly AzureIotHubDataPortCommunication _communication;
-    private readonly IDeviceClientPool _deviceClientPool;
+    private readonly Func<CancellationToken, Task<IDictionary<Guid, VirtualDeviceClient>>> _createDeviceClients;
     private readonly DesiredPropertyHandler _desiredPropertyHandler;
     private readonly JsonSerializerOptions _serializerOptions;
     private readonly ILogger _logger;
@@ -23,13 +22,12 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
     public event Action<IReadOnlyCollection<ExternalValue>>? Received;
 
     public AzureIotHubDataPortIncoming(AzureIotHubDataPortCommunication communication, AssemblyLoadContext assemblyLoadContext, ILogger<AzureIotHubDataPortIncoming> logger)
-        : this(communication, assemblyLoadContext, DeviceClientPool.Instance, logger)
+        : this(communication, assemblyLoadContext, cancellationToken => AzureSetup.CreateDeviceClients(communication, DeviceClientPool.Instance, cancellationToken), logger)
     { }
 
-    internal AzureIotHubDataPortIncoming(AzureIotHubDataPortCommunication communication, AssemblyLoadContext assemblyLoadContext, IDeviceClientPool deviceClientPool, ILogger<AzureIotHubDataPortIncoming> logger, TimeProvider? timeProvider = null)
+    internal AzureIotHubDataPortIncoming(AzureIotHubDataPortCommunication communication, AssemblyLoadContext assemblyLoadContext, Func<CancellationToken, Task<IDictionary<Guid, VirtualDeviceClient>>> createDeviceClients, ILogger<AzureIotHubDataPortIncoming> logger, TimeProvider? timeProvider = null)
     {
-        _communication = communication;
-        _deviceClientPool = deviceClientPool;
+        _createDeviceClients = createDeviceClients;
         _serializerOptions = JsonSetup.CreatePreserveTypeOptions(assemblyLoadContext);
         _desiredPropertyHandler = new(communication, timeProvider, _serializerOptions, logger);
         _logger = logger;
@@ -40,7 +38,7 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
         if (_nodeDeviceClients is not null)
             return;
 
-        _nodeDeviceClients = await AzureSetup.CreateDeviceClients(_communication, _deviceClientPool, cancellationToken).ConfigureAwait(false);
+        _nodeDeviceClients = await _createDeviceClients(cancellationToken).ConfigureAwait(false);
 
         foreach (var (_, deviceClient) in _nodeDeviceClients)
         {
@@ -52,7 +50,7 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
             await ReceiveTwinDesiredPropertiesAsync(deviceClient, cancellationToken).ConfigureAwait(false);
     }
 
-    internal async Task ReceiveTwinDesiredPropertiesAsync(VirtualDeviceClient deviceClient, CancellationToken cancellationToken)
+    private async Task ReceiveTwinDesiredPropertiesAsync(VirtualDeviceClient deviceClient, CancellationToken cancellationToken)
     {
         if (!_desiredPropertyHandler.HasDesiredProperties(deviceClient.DeviceId))
             return;

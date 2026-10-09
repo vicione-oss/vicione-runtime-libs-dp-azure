@@ -12,8 +12,7 @@ namespace ViciOne.Suite.DataPort;
 public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication<AzureIotHubDataPortCommunication>, IAsyncDisposable
 {
     private readonly TaskPipeline<bool> _taskPipeline;
-    private readonly AzureIotHubDataPortCommunication _communication;
-    private readonly IDeviceClientPool _deviceClientPool;
+    private readonly Func<CancellationToken, Task<IDictionary<Guid, VirtualDeviceClient>>> _createDeviceClients;
     private readonly TelemetryHandler _telemetryHandler;
     private readonly ReportedPropertyHandler _reportedPropertyHandler;
     private readonly ILogger _logger;
@@ -25,13 +24,12 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
     private IDictionary<Guid, VirtualDeviceClient>? _nodeDeviceClients;
 
     public AzureIotHubDataPortOutgoing(AzureIotHubDataPortCommunication communication, ILogger<AzureIotHubDataPortOutgoing> logger)
-        : this(communication, DeviceClientPool.Instance, logger)
+        : this(communication, cancellationToken => AzureSetup.CreateDeviceClients(communication, DeviceClientPool.Instance, cancellationToken), logger)
     { }
 
-    internal AzureIotHubDataPortOutgoing(AzureIotHubDataPortCommunication communication, IDeviceClientPool deviceClientPool, ILogger<AzureIotHubDataPortOutgoing> logger)
+    internal AzureIotHubDataPortOutgoing(AzureIotHubDataPortCommunication communication, Func<CancellationToken, Task<IDictionary<Guid, VirtualDeviceClient>>> createDeviceClients, ILogger<AzureIotHubDataPortOutgoing> logger)
     {
-        _communication = communication;
-        _deviceClientPool = deviceClientPool;
+        _createDeviceClients = createDeviceClients;
         _telemetryHandler = new(communication, SendEventsToDevice);
         _reportedPropertyHandler = new(communication, UpdateReportedProperties);
         _queueSize = communication.MaxPendingMessages;
@@ -57,7 +55,7 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         if (_nodeDeviceClients is not null)
             return;
 
-        _nodeDeviceClients = await AzureSetup.CreateDeviceClients(_communication, _deviceClientPool, cancellationToken).ConfigureAwait(false);
+        _nodeDeviceClients = await _createDeviceClients(cancellationToken).ConfigureAwait(false);
 
         foreach (var (_, deviceClient) in _nodeDeviceClients)
             await deviceClient.Connect(cancellationToken).ConfigureAwait(false);
