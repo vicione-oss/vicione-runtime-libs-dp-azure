@@ -31,6 +31,9 @@ internal sealed class DesiredPropertyHandler
         _logger = logger;
     }
 
+    internal bool HasDesiredProperties(string deviceId)
+        => _deviceTransferredNodes.ContainsKey(deviceId);
+
     /*
      * TwinCollection JSON
      * -------------------

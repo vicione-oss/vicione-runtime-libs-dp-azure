@@ -24,6 +24,9 @@ internal sealed class DeviceClient(Microsoft.Azure.Devices.Client.DeviceClient d
     public Task UpdateReportedPropertiesAsync(TwinCollection reportedProperties, CancellationToken cancellationToken)
         => deviceClient.UpdateReportedPropertiesAsync(reportedProperties, cancellationToken);
 
+    public Task<Twin> GetTwinAsync(CancellationToken cancellationToken)
+        => deviceClient.GetTwinAsync(cancellationToken);
+
     public Task SetDesiredPropertyUpdateCallbackAsync(DesiredPropertyUpdateCallback callback, object userContext, CancellationToken cancellationToken)
         => deviceClient.SetDesiredPropertyUpdateCallbackAsync(callback, userContext, cancellationToken);
 

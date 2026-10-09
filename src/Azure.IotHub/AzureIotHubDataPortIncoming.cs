@@ -16,6 +16,7 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
     private readonly IDeviceClientPool _deviceClientPool;
     private readonly DesiredPropertyHandler _desiredPropertyHandler;
     private readonly JsonSerializerOptions _serializerOptions;
+    private readonly ILogger _logger;
 
     private IDictionary<Guid, VirtualDeviceClient>? _nodeDeviceClients;
 
@@ -31,6 +32,7 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
         _deviceClientPool = deviceClientPool;
         _serializerOptions = JsonSetup.CreatePreserveTypeOptions(assemblyLoadContext);
         _desiredPropertyHandler = new(communication, timeProvider, _serializerOptions, logger);
+        _logger = logger;
     }
 
     public async Task ConnectAsync(CancellationToken cancellationToken)
@@ -44,6 +46,25 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
         {
             deviceClient.DesiredPropertyUpdate += OnDesiredPropertyUpdate;
             await deviceClient.Connect(cancellationToken).ConfigureAwait(false);
+        }
+
+        foreach (var deviceClient in _nodeDeviceClients.Values)
+            await ReceiveTwinDesiredPropertiesAsync(deviceClient, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task ReceiveTwinDesiredPropertiesAsync(VirtualDeviceClient deviceClient, CancellationToken cancellationToken)
+    {
+        if (!_desiredPropertyHandler.HasDesiredProperties(deviceClient.DeviceId))
+            return;
+
+        try
+        {
+            var twin = await deviceClient.InternalDeviceClient.GetTwinAsync(cancellationToken).ConfigureAwait(false);
+            Received?.Invoke(_desiredPropertyHandler.HandleDesiredProperty(deviceClient.DeviceId, twin.Properties.Desired));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.ReadingTwinFailed(deviceClient.DeviceId, ex);
         }
     }
 

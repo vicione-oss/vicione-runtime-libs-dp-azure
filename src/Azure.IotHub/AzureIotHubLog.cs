@@ -16,4 +16,7 @@ internal static partial class AzureIotHubLog
 
     [LoggerMessage(3, LogLevel.Warning, "Cannot read desired property '{Property}' of device '{DeviceId}'. The value is skipped.")]
     internal static partial void DesiredPropertyUnreadable(this ILogger logger, string deviceId, string property, Exception exception);
+
+    [LoggerMessage(4, LogLevel.Error, "Cannot read the device twin of '{DeviceId}'. Desired properties apply from the next patch.")]
+    internal static partial void ReadingTwinFailed(this ILogger logger, string deviceId, Exception exception);
 }
