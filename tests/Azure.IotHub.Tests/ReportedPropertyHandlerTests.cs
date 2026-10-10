@@ -89,6 +89,19 @@ public class ReportedPropertyHandler_Process
         logger.LatestRecord.Message.Should().Match($"*'MyValue'*{value}*");
     }
 
+    [Fact]
+    public async Task Logs_an_out_of_range_integer_once_until_the_value_is_back_in_range_Async()
+    {
+        FakeLogger<ReportedPropertyHandler> logger = new();
+        var (handler, channel, collections) = CreateHandler(logger);
+
+        foreach (var value in new object[] { long.MaxValue, long.MaxValue, long.MinValue, 1L, long.MaxValue, })
+            await handler.Process([new() { Channel = channel, Value = value, }], TestContext.Current.CancellationToken);
+
+        logger.Collector.GetSnapshot().Should().HaveCount(2).And.OnlyContain(r => r.Level == LogLevel.Warning);
+        collections.Should().ContainSingle().Which.ToJson().Should().Be("{\"MyValue\":1}");
+    }
+
     [Theory]
     [InlineData(ReportedPropertyHandler.TwinIntegerMinimum)]
     [InlineData(ReportedPropertyHandler.TwinIntegerMaximum)]

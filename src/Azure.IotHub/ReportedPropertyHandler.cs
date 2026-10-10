@@ -21,6 +21,8 @@ internal sealed class ReportedPropertyHandler : UnspecificTreeHandlerOutgoing<Re
     private readonly Func<Guid, TwinCollection, CancellationToken, Task> _updateReportedProperties;
     private readonly ILogger _logger;
     private readonly Dictionary<Guid, Guid> _transferredDeviceNodes = [];
+    // Only the send loop calls Process, so the set needs no lock.
+    private readonly HashSet<string> _outOfRangeChannels = [];
 
     internal ReportedPropertyHandler(AzureIotHubDataPortCommunication communication, Func<Guid, TwinCollection, CancellationToken, Task> updateReportedProperties, ILogger logger)
     {
@@ -65,9 +67,14 @@ internal sealed class ReportedPropertyHandler : UnspecificTreeHandlerOutgoing<Re
     private bool IsAcceptedByTwin(ExternalValue value)
     {
         if (IsWithinTwinIntegerRange(value.Value))
+        {
+            _outOfRangeChannels.Remove(value.Channel);
             return true;
+        }
 
-        _logger.ReportedIntegerOutOfRange(string.Join('.', ChannelJsonNodeRoutes[value.Channel].Select(n => n.Name)), value.Value);
+        if (_outOfRangeChannels.Add(value.Channel))
+            _logger.ReportedIntegerOutOfRange(string.Join('.', ChannelJsonNodeRoutes[value.Channel].Select(n => n.Name)), value.Value);
+
         return false;
     }
 
