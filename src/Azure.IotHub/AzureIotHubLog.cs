@@ -25,4 +25,7 @@ internal static partial class AzureIotHubLog
 
     [LoggerMessage(7, LogLevel.Warning, "Reported property '{Property}' is skipped: device twins accept integers only between -4503599627370496 and 4503599627370495, but the value is {Value}. Further values are skipped without a warning until one is back in range.")]
     internal static partial void ReportedIntegerOutOfRange(this ILogger logger, string property, object? value);
+
+    [LoggerMessage(8, LogLevel.Error, "Azure IoT Hub refuses {Operation} of device '{DeviceId}'. They are dropped without a further error until the hub accepts them again.")]
+    internal static partial void DeviceRefused(this ILogger logger, string deviceId, string operation, Exception exception);
 }

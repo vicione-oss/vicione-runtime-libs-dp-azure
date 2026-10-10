@@ -39,9 +39,37 @@ public class AzureIotHubDataPortOutgoing_SendAsync
     [
         new IotHubSuspendedException("IoT Hub suspended."),
         new DeviceMaximumQueueDepthExceededException("Daily quota exceeded."),
-        new UnauthorizedException("Key refused."),
-        new DeviceNotFoundException("Device not found."),
     ];
+
+    public static TheoryData<Exception> Refusals { get; } =
+    [
+        new DeviceNotFoundException("Device not found."),
+        new UnauthorizedException("Key refused."),
+        new InvalidOperationException("amqp:not-allowed"),
+        new NotSupportedException("amqp:not-implemented"),
+    ];
+
+    [Theory]
+    [MemberData(nameof(Refusals))]
+    public async Task Drops_the_data_of_a_refused_device_without_blocking_and_logs_once_Async(Exception refusal)
+    {
+        var deviceClient = Substitute.For<IDeviceClient>();
+        deviceClient.UpdateReportedPropertiesAsync(Arg.Any<TwinCollection>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(refusal), Task.FromException(refusal), Task.CompletedTask, Task.FromException(refusal));
+        FakeLogger<AzureIotHubDataPortOutgoing> logger = new();
+        using DeviceClientPool pool = new((_, _) => deviceClient);
+        await using var outgoing = CreateOutgoing(pool, logger);
+        await outgoing.ConnectAsync(TestContext.Current.CancellationToken);
+
+        for (var cycle = 1; cycle <= 4; cycle++)
+            await outgoing.SendAsync((ulong)cycle, CreateCycle(cycle), TestContext.Current.CancellationToken);
+        await outgoing.DisconnectAsync(TestContext.Current.CancellationToken);
+
+        await deviceClient.Received(4).SendEventAsync(Arg.Any<Message>(), Arg.Any<CancellationToken>());
+        await deviceClient.Received(4).UpdateReportedPropertiesAsync(Arg.Any<TwinCollection>(), Arg.Any<CancellationToken>());
+        logger.Collector.GetSnapshot().Should().Satisfy(
+            r => r.Message.Contains("refuses", StringComparison.Ordinal),
+            r => r.Message.Contains("refuses", StringComparison.Ordinal));
+    }
 
     [Theory]
     [MemberData(nameof(Rejections))]

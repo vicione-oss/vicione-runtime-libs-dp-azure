@@ -24,6 +24,8 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
     private ManagedQueue<IReadOnlyCollection<ExternalValue>>? _queue;
     private Task? _queueTask;
     private CancellationTokenSource? _deliveryCancellation;
+    // Only the send loop delivers, so the set needs no lock.
+    private readonly HashSet<(string DeviceId, string Operation)> _refusedOperations = [];
 
     private IDictionary<Guid, VirtualDeviceClient>? _nodeDeviceClients;
 
@@ -136,19 +138,19 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
     }
 
     private Task SendEventsToDevice(Guid deviceNodeId, Func<Message> createMessage, CancellationToken cancellationToken)
-        => DeliverAsync(deviceNodeId, async deviceClient =>
+        => DeliverAsync(deviceNodeId, "telemetry", async deviceClient =>
         {
             using var message = createMessage();
             await deviceClient.SendEventAsync(message, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
 
     private Task UpdateReportedProperties(Guid deviceNodeId, TwinCollection collection, CancellationToken cancellationToken)
-        => DeliverAsync(deviceNodeId, deviceClient => deviceClient.UpdateReportedPropertiesAsync(collection, cancellationToken), cancellationToken);
+        => DeliverAsync(deviceNodeId, "reported properties", deviceClient => deviceClient.UpdateReportedPropertiesAsync(collection, cancellationToken), cancellationToken);
 
     // Failures are retried until the queue completes; nothing goes back into the queue, so data the hub already
-    // accepted is never sent twice. A rejection of the data itself is permanent, and retrying it would block every
-    // later value.
-    private async Task DeliverAsync(Guid deviceNodeId, Func<IDeviceClient, Task> send, CancellationToken cancellationToken)
+    // accepted is never sent twice. A rejected message and the data of a refused device are dropped, because all
+    // devices share the queue and retrying them would block every later value.
+    private async Task DeliverAsync(Guid deviceNodeId, string operation, Func<IDeviceClient, Task> send, CancellationToken cancellationToken)
     {
         if (_nodeDeviceClients is null)
             throw new InvalidOperationException("Device clients not initialized.");
@@ -160,11 +162,19 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
             try
             {
                 await send(deviceClient.InternalDeviceClient).ConfigureAwait(false);
+                _refusedOperations.Remove((deviceClient.DeviceId, operation));
                 return;
             }
-            catch (Exception ex) when (IsRejection(ex))
+            catch (Exception ex) when (IsDataRejection(ex))
             {
                 _logger.DataRejected(deviceClient.DeviceId, ex);
+                return;
+            }
+            catch (Exception ex) when (IsDeviceRefusal(ex))
+            {
+                if (_refusedOperations.Add((deviceClient.DeviceId, operation)))
+                    _logger.DeviceRefused(deviceClient.DeviceId, operation, ex);
+
                 return;
             }
             catch (Exception ex) when (cancellationToken.IsCancellationRequested || _queue is null or { IsAddingCompleted: true })
@@ -181,15 +191,20 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
     }
 
     // The SDK reports a refused message or patch as one of these; a plain IotHubException carries the 4xx response
-    // to a twin request. Its subclasses for a suspended hub, the daily quota, an unknown device or a refused key are
-    // about the hub or the device, not the data, and the data stays queued until the hub accepts it again.
-    private static bool IsRejection(Exception exception)
+    // to a twin request.
+    private static bool IsDataRejection(Exception exception)
         => exception switch
         {
             MessageTooLargeException or ArgumentException => true,
             IotHubException { IsTransient: false } iotHubException => iotHubException.GetType() == typeof(IotHubException),
             _ => false,
         };
+
+    // An unknown device or a refused key, and the AMQP conditions not-allowed and not-implemented, concern one
+    // device. Everything else, such as a suspended hub or the daily quota, stops every device alike, so its data
+    // stays queued until the hub accepts it again.
+    private static bool IsDeviceRefusal(Exception exception)
+        => exception is DeviceNotFoundException or UnauthorizedException or InvalidOperationException or NotSupportedException;
 
     private static TimeSpan GetRetryDelay(int attempt)
         => attempt switch

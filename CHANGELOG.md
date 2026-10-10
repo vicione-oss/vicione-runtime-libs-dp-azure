@@ -28,6 +28,7 @@
 - Keep a desired-property patch that arrives while the twin is read on connect, instead of overwriting it with the older twin values
 - Log and drop IoT Hub telemetry or reported properties the hub rejects, instead of re-queuing them forever and blocking every later value
 - Retry only the failed IoT Hub message after a transient error, so telemetry the hub already accepted is never sent twice
+- Drop the telemetry or reported properties of a device IoT Hub refuses, for example a deleted device or a refused key, with one error until the hub accepts them again, so the other devices keep sending
 - Finish an IoT Hub disconnect within 10 seconds while the hub is unreachable, dropping the values still queued, instead of waiting forever
 - Skip `Int64` and `UInt64` reported properties outside the device twin range of `-4503599627370496` to `4503599627370495`, so the rest of the patch is still accepted, with one warning per property until its value is back in range
 - Publish values queued before the send loop of the IoT Hub and EventGrid DataPorts starts, and a backlog larger than `Bulk size`, without waiting for the next value
