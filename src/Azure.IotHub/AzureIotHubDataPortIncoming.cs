@@ -22,6 +22,8 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
     private readonly Dictionary<string, List<TwinCollection>> _patchesDuringTwinRead = [];
 
     private IDictionary<Guid, VirtualDeviceClient>? _nodeDeviceClients;
+    private CancellationTokenSource? _twinReadCancellation;
+    private Task? _twinRead;
 
     public event Action<IReadOnlyCollection<ExternalValue>>? Received;
 
@@ -56,9 +58,16 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
             await deviceClient.Connect(cancellationToken).ConfigureAwait(false);
         }
 
-        foreach (var deviceClient in _nodeDeviceClients.Values)
-            await ReceiveTwinDesiredPropertiesAsync(deviceClient, cancellationToken).ConfigureAwait(false);
+        _twinReadCancellation = new();
+        var twinReadToken = _twinReadCancellation.Token;
+        VirtualDeviceClient[] deviceClients = [.. _nodeDeviceClients.Values];
+        _twinRead = Task.Run(() => Task.WhenAll(deviceClients.Select(c => ReceiveTwinDesiredPropertiesAsync(c, twinReadToken))), CancellationToken.None);
     }
+
+    // The SDK retries an unreachable hub without end, so the twin is read in the background: connecting does not wait
+    // for Azure, and one slow device does not delay the others. Disconnecting cancels the read.
+    internal Task TwinRead
+        => _twinRead ?? Task.CompletedTask;
 
     private async Task ReceiveTwinDesiredPropertiesAsync(VirtualDeviceClient deviceClient, CancellationToken cancellationToken)
     {
@@ -83,6 +92,8 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
     {
         if (_nodeDeviceClients is null)
             return;
+
+        await StopTwinReadAsync().ConfigureAwait(false);
 
         foreach (var deviceClient in _nodeDeviceClients.Values)
         {
@@ -146,8 +157,31 @@ public sealed class AzureIotHubDataPortIncoming : IExternalIncomingCommunication
         _appliedDesiredVersions[deviceId] = desired.Version;
     }
 
+    private async Task StopTwinReadAsync()
+    {
+        if (_twinReadCancellation is null)
+            return;
+
+        await _twinReadCancellation.CancelAsync().ConfigureAwait(false);
+
+        try
+        {
+            await TwinRead.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled on purpose; the next connect reads the twin again.
+        }
+
+        _twinReadCancellation.Dispose();
+        _twinReadCancellation = null;
+        _twinRead = null;
+    }
+
     public async ValueTask DisposeAsync()
     {
+        await StopTwinReadAsync().ConfigureAwait(false);
+
         if (_nodeDeviceClients is not null)
         {
             foreach (var deviceClient in _nodeDeviceClients.Values)

@@ -35,6 +35,7 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
         incoming.Received += received.AddRange;
 
         await incoming.ConnectAsync(TestContext.Current.CancellationToken);
+        await incoming.TwinRead.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         var value = received.Should().ContainSingle().Which;
         value.Channel.Should().Be(channels["MyValue"]);
@@ -54,6 +55,7 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
         incoming.Received += received.AddRange;
 
         await incoming.ConnectAsync(TestContext.Current.CancellationToken);
+        await incoming.TwinRead.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         received.Should().SatisfyRespectively(
             first => first.Should().Match<ExternalValue>(v => v.Channel == channels["MyValue"] && (int)v.Value! == 1),
@@ -74,8 +76,28 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
         incoming.Received += received.AddRange;
 
         await incoming.ConnectAsync(TestContext.Current.CancellationToken);
+        await incoming.TwinRead.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         received.Should().ContainSingle().Which.Value.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Connects_without_waiting_for_a_twin_read_that_does_not_return_Async()
+    {
+        var deviceClient = Substitute.For<IDeviceClient>();
+        deviceClient.GetTwinAsync(Arg.Any<CancellationToken>()).Returns(async call =>
+        {
+            await Task.Delay(Timeout.Infinite, call.Arg<CancellationToken>());
+            return new Twin();
+        });
+        using DeviceClientPool pool = new((_, _) => deviceClient);
+        var (incoming, _) = CreateIncoming(pool, NullLogger<AzureIotHubDataPortIncoming>.Instance, "MyDevice");
+        await using var _ = incoming;
+
+        await incoming.ConnectAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        await incoming.DisconnectAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+        await deviceClient.Received(1).GetTwinAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -87,6 +109,7 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
         await using var _ = incoming;
 
         await incoming.ConnectAsync(TestContext.Current.CancellationToken);
+        await incoming.TwinRead.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         await deviceClient.DidNotReceive().GetTwinAsync(Arg.Any<CancellationToken>());
     }
@@ -102,6 +125,7 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
         await using var _ = incoming;
 
         await incoming.ConnectAsync(TestContext.Current.CancellationToken);
+        await incoming.TwinRead.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         await deviceClient.Received(1).OpenAsync(Arg.Any<CancellationToken>());
         logger.LatestRecord.Level.Should().Be(LogLevel.Error);

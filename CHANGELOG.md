@@ -24,7 +24,7 @@
 - Send EventGrid event times in UTC and use the current time for values without a timestamp, so the first event after a deploy is no longer lost east of UTC
 - Write `NaN` and `±Infinity` as the strings `"NaN"`, `"Infinity"` and `"-Infinity"` in IoT Hub telemetry, reported properties and EventGrid events instead of failing the whole message
 - Apply IoT Hub desired-property patches that contain only some of the configured keys, and skip a desired value that does not match its type with a warning instead of dropping the whole patch
-- Read the IoT Hub device twin on connect, so desired properties set before a deploy or while the edge was offline reach the engine
+- Read the IoT Hub device twin in the background after connecting, so desired properties set before a deploy or while the edge was offline reach the engine without holding up its start
 - Apply the twin read on connect first and the desired-property patches that arrive meanwhile after it in `$version` order, so neither a newer patch nor a key only in the twin is lost
 - Log and drop IoT Hub telemetry or reported properties the hub rejects, instead of re-queuing them forever and blocking every later value
 - Retry only the failed IoT Hub message after a transient error, so telemetry the hub already accepted is never sent twice
