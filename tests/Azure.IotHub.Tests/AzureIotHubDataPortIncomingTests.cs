@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.Loader;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -28,7 +29,7 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
         var deviceClient = Substitute.For<IDeviceClient>();
         deviceClient.GetTwinAsync(Arg.Any<CancellationToken>()).Returns(new Twin { Properties = new() { Desired = new("""{ "MyValue": 23, "$version": 4 }"""), }, });
         using DeviceClientPool pool = new((_, _) => deviceClient);
-        var (incoming, channel) = CreateIncoming(pool, NullLogger<AzureIotHubDataPortIncoming>.Instance, "MyDevice");
+        var (incoming, channels) = CreateIncoming(pool, NullLogger<AzureIotHubDataPortIncoming>.Instance, "MyDevice");
         await using var _ = incoming;
         List<ExternalValue> received = [];
         incoming.Received += received.AddRange;
@@ -36,26 +37,36 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
         await incoming.ConnectAsync(TestContext.Current.CancellationToken);
 
         var value = received.Should().ContainSingle().Which;
-        value.Channel.Should().Be(channel);
+        value.Channel.Should().Be(channels["MyValue"]);
         value.Value.Should().Be(23);
     }
 
     [Fact]
-    public async Task Keeps_a_patch_newer_than_the_twin_read_on_connect_Async()
+    public async Task Applies_the_twin_and_then_a_newer_patch_that_arrives_during_the_read_Async()
     {
-        var deviceClient = Substitute.For<IDeviceClient>();
-        DesiredPropertyUpdateCallback? onPatch = null;
-        object? patchContext = null;
-        deviceClient.When(c => c.SetDesiredPropertyUpdateCallbackAsync(Arg.Any<DesiredPropertyUpdateCallback>(), Arg.Any<object>(), Arg.Any<CancellationToken>())).Do(call =>
-        {
-            onPatch = call.ArgAt<DesiredPropertyUpdateCallback>(0);
-            patchContext = call.ArgAt<object>(1);
-        });
-        deviceClient.GetTwinAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
-        {
-            await onPatch!(new("""{ "MyValue": 2, "$version": 5 }"""), patchContext!);
-            return new Twin { Properties = new() { Desired = new("""{ "MyValue": 1, "$version": 4 }"""), }, };
-        });
+        await using var deviceClient = CreateDeviceClientWithPatchDuringTwinRead(
+            twin: """{ "MyValue": 1, "OtherValue": 7, "$version": 4 }""",
+            patch: """{ "MyValue": 2, "$version": 5 }""");
+        using DeviceClientPool pool = new((_, _) => deviceClient);
+        var (incoming, channels) = CreateIncoming(pool, NullLogger<AzureIotHubDataPortIncoming>.Instance, "MyDevice");
+        await using var _ = incoming;
+        List<ExternalValue> received = [];
+        incoming.Received += received.AddRange;
+
+        await incoming.ConnectAsync(TestContext.Current.CancellationToken);
+
+        received.Should().SatisfyRespectively(
+            first => first.Should().Match<ExternalValue>(v => v.Channel == channels["MyValue"] && (int)v.Value! == 1),
+            second => second.Should().Match<ExternalValue>(v => v.Channel == channels["OtherValue"] && (int)v.Value! == 7),
+            third => third.Should().Match<ExternalValue>(v => v.Channel == channels["MyValue"] && (int)v.Value! == 2));
+    }
+
+    [Fact]
+    public async Task Skips_a_patch_older_than_the_twin_that_arrives_during_the_read_Async()
+    {
+        await using var deviceClient = CreateDeviceClientWithPatchDuringTwinRead(
+            twin: """{ "MyValue": 1, "$version": 4 }""",
+            patch: """{ "MyValue": 2, "$version": 3 }""");
         using DeviceClientPool pool = new((_, _) => deviceClient);
         var (incoming, _) = CreateIncoming(pool, NullLogger<AzureIotHubDataPortIncoming>.Instance, "MyDevice");
         await using var _ = incoming;
@@ -64,7 +75,7 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
 
         await incoming.ConnectAsync(TestContext.Current.CancellationToken);
 
-        received.Should().ContainSingle().Which.Value.Should().Be(2);
+        received.Should().ContainSingle().Which.Value.Should().Be(1);
     }
 
     [Fact]
@@ -97,29 +108,40 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
         logger.LatestRecord.Message.Should().Match("*twin*'MyDevice'*");
     }
 
-    private static (AzureIotHubDataPortIncoming Incoming, string Channel) CreateIncoming(DeviceClientPool pool, ILogger<AzureIotHubDataPortIncoming> logger, string connectedDevice)
+    private static IDeviceClient CreateDeviceClientWithPatchDuringTwinRead(string twin, string patch)
+    {
+        var deviceClient = Substitute.For<IDeviceClient>();
+        DesiredPropertyUpdateCallback? onPatch = null;
+        object? patchContext = null;
+        deviceClient.When(c => c.SetDesiredPropertyUpdateCallbackAsync(Arg.Any<DesiredPropertyUpdateCallback>(), Arg.Any<object>(), Arg.Any<CancellationToken>())).Do(call =>
+        {
+            onPatch = call.ArgAt<DesiredPropertyUpdateCallback>(0);
+            patchContext = call.ArgAt<object>(1);
+        });
+        deviceClient.GetTwinAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
+        {
+            await onPatch!(new(patch), patchContext!);
+            return new Twin { Properties = new() { Desired = new(twin), }, };
+        });
+
+        return deviceClient;
+    }
+
+    private static (AzureIotHubDataPortIncoming Incoming, Dictionary<string, string> Channels) CreateIncoming(DeviceClientPool pool, ILogger<AzureIotHubDataPortIncoming> logger, string connectedDevice)
     {
         Node deviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = "MyDevice", };
         Node otherDeviceNode = new() { Id = Guid.NewGuid(), DesignId = AzureIotHubNodeDesignId.Device, Name = "OtherDevice", };
         Node propertiesNode = new() { Id = Guid.NewGuid(), ParentId = deviceNode.Id, DesignId = AzureIotHubNodeDesignId.Properties, };
-        var valueNodeId = Guid.NewGuid();
+        var desiredNodeId = Guid.NewGuid();
+        Node[] valueNodes = [CreateValueNode(desiredNodeId, "MyValue"), CreateValueNode(desiredNodeId, "OtherValue"),];
         Node desiredNode = new()
         {
-            Id = Guid.NewGuid(),
+            Id = desiredNodeId,
             ParentId = propertiesNode.Id,
             DesignId = AzureIotHubNodeDesignId.Desired,
-            TransferredChannels = [valueNodeId.ToString(),],
+            TransferredChannels = [.. valueNodes.Select(n => n.Id.ToString()),],
         };
-        Node valueNode = new()
-        {
-            Id = valueNodeId,
-            ParentId = desiredNode.Id,
-            DesignId = AzureIotHubNodeDesignId.JsonStructure,
-            Name = "MyValue",
-            AffectedChannels = [valueNodeId.ToString(),],
-            ValueType = typeof(int),
-        };
-        AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, otherDeviceNode, propertiesNode, desiredNode, valueNode,], };
+        AzureIotHubDataPortCommunication communication = new() { Nodes = [deviceNode, otherDeviceNode, propertiesNode, desiredNode, .. valueNodes,], };
         var connectedNode = connectedDevice == deviceNode.Name ? deviceNode : otherDeviceNode;
 
         AzureIotHubDataPortIncoming incoming = new(
@@ -131,7 +153,14 @@ public class AzureIotHubDataPortIncoming_ConnectAsync
             },
             logger);
 
-        return (incoming, valueNodeId.ToString());
+        return (incoming, valueNodes.ToDictionary(n => n.Name, n => n.Id.ToString()));
+    }
+
+    private static Node CreateValueNode(Guid parentId, string name)
+    {
+        var id = Guid.NewGuid();
+
+        return new() { Id = id, ParentId = parentId, DesignId = AzureIotHubNodeDesignId.JsonStructure, Name = name, AffectedChannels = [id.ToString(),], ValueType = typeof(int), };
     }
 }
 
