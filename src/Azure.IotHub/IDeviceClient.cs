@@ -12,5 +12,6 @@ internal interface IDeviceClient : IAsyncDisposable
     Task CloseAsync(CancellationToken cancellationToken);
     Task SendEventAsync(Message message, CancellationToken cancellationToken);
     Task UpdateReportedPropertiesAsync(TwinCollection reportedProperties, CancellationToken cancellationToken);
+    Task<Twin> GetTwinAsync(CancellationToken cancellationToken);
     Task SetDesiredPropertyUpdateCallbackAsync(DesiredPropertyUpdateCallback callback, object userContext, CancellationToken cancellationToken);
 }

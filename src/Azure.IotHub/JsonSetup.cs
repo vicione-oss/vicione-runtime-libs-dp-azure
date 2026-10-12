@@ -8,6 +8,8 @@ internal static class JsonSetup
 {
     internal static JsonSerializerOptions PreserveTypeOptions { get; } = CreatePreserveTypeOptions();
 
+    internal static JsonSerializerOptions OutgoingOptions { get; } = new() { NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals, };
+
     internal static JsonSerializerOptions CreatePreserveTypeOptions(AssemblyLoadContext? assemblyLoadContext = default)
         => new()
         {

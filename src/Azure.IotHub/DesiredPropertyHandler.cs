@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Azure.Devices.Shared;
+using Microsoft.Extensions.Logging;
 using ViciOne.ManagedEngine.ExternalCommunication;
 
 namespace ViciOne.Suite.DataPort;
@@ -14,8 +15,9 @@ internal sealed class DesiredPropertyHandler
     private readonly Dictionary<string, IReadOnlyCollection<INode>> _deviceTransferredNodes;
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonSerializerOptions;
+    private readonly ILogger _logger;
 
-    internal DesiredPropertyHandler(AzureIotHubDataPortCommunication communication, TimeProvider? timeProvider, JsonSerializerOptions jsonSerializerOptions)
+    internal DesiredPropertyHandler(AzureIotHubDataPortCommunication communication, TimeProvider? timeProvider, JsonSerializerOptions jsonSerializerOptions, ILogger logger)
     {
         var linkedNodes = LinkedNodeFactory.Create(communication.Nodes);
         var nodes = linkedNodes.SelectMany(ln => ln.GetAllChildren(new()
@@ -26,7 +28,11 @@ internal sealed class DesiredPropertyHandler
         (_transferredNodeJsonNodes, _deviceTransferredNodes) = InitializeIncoming(nodes, n => ((LinkedNode)n).Parent?.Parent?.Name ?? throw new InvalidOperationException("Device node not found."));
         _timeProvider = timeProvider ?? TimeProvider.System;
         _jsonSerializerOptions = jsonSerializerOptions;
+        _logger = logger;
     }
+
+    internal bool HasDesiredProperties(string deviceId)
+        => _deviceTransferredNodes.ContainsKey(deviceId);
 
     /*
      * TwinCollection JSON
@@ -50,35 +56,48 @@ internal sealed class DesiredPropertyHandler
      */
     internal IReadOnlyCollection<ExternalValue> HandleDesiredProperty(string deviceId, TwinCollection twinCollection)
     {
-        var transferredNodes = _deviceTransferredNodes[deviceId];
+        if (!_deviceTransferredNodes.TryGetValue(deviceId, out var transferredNodes))
+            return [];
+
         List<ExternalValue> externalValues = [];
         var jsonNode = JsonNode.Parse(twinCollection.ToJson());
 
         foreach (var transferredNode in transferredNodes)
         {
-            if (_transferredNodeJsonNodes.TryGetValue(transferredNode.Id, out var routes))
-            {
-                foreach (var route in routes)
-                {
-                    var valueNode = NodeValueFactory.GetValueJsonNode(route, jsonNode);
-                    var timestamp = GetValueJsonNode(route, twinCollection);
-                    var dataPortNode = route[^1];
-                    var valueType = dataPortNode.ValueType ?? throw new InvalidOperationException("Type of value not found.");
-                    var value = valueNode.Deserialize(valueType, _jsonSerializerOptions);
-                    var channel = dataPortNode.AffectedChannels.First(transferredNode.TransferredChannels.Contains);
+            if (!_transferredNodeJsonNodes.TryGetValue(transferredNode.Id, out var routes))
+                continue;
 
-                    externalValues.Add(new()
-                    {
-                        Channel = channel,
-                        Value = value,
-                        Timestamp = timestamp ?? _timeProvider.GetUtcNow().DateTime,
-                        Validity = 1,
-                    });
+            foreach (var route in routes)
+            {
+                try
+                {
+                    // A patch carries only the changed keys, and null removes a key.
+                    if (NodeValueFactory.GetValueJsonNode(route, jsonNode) is { } valueNode)
+                        externalValues.Add(CreateValue(transferredNode, route, valueNode, twinCollection));
+                }
+                // InvalidOperationException: a value or an array stands where the route expects a JSON object.
+                catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+                {
+                    _logger.DesiredPropertyUnreadable(deviceId, string.Join('.', route.Select(n => n.Name)), ex);
                 }
             }
         }
 
         return externalValues;
+    }
+
+    private ExternalValue CreateValue(INode transferredNode, INode[] route, JsonNode valueNode, TwinCollection twinCollection)
+    {
+        var dataPortNode = route[^1];
+        var valueType = dataPortNode.ValueType ?? throw new InvalidOperationException("Type of value not found.");
+
+        return new()
+        {
+            Channel = dataPortNode.AffectedChannels.First(transferredNode.TransferredChannels.Contains),
+            Value = valueNode.Deserialize(valueType, _jsonSerializerOptions),
+            Timestamp = GetValueJsonNode(route, twinCollection) ?? _timeProvider.GetUtcNow().DateTime,
+            Validity = 1,
+        };
     }
 
     private static DateTime? GetValueJsonNode(Span<INode> structure, object? collection, int index = 0)

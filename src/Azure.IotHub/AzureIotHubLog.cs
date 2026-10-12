@@ -5,12 +5,27 @@ namespace ViciOne.Suite.DataPort;
 
 internal static partial class AzureIotHubLog
 {
-    [LoggerMessage(0, LogLevel.Error, "Cannot publish values. Items will be enqueued again.")]
-    internal static partial void PublishBatchFailed(this ILogger logger);
-
-    [LoggerMessage(1, LogLevel.Error, "Cannot publish data to Azure Iot Hub.")]
-    internal static partial void PublishingFailed(this ILogger logger, Exception exception);
+    [LoggerMessage(1, LogLevel.Error, "Cannot publish data for device '{DeviceId}' to Azure IoT Hub. Retrying in {Delay}.")]
+    internal static partial void PublishingFailed(this ILogger logger, string deviceId, TimeSpan delay, Exception exception);
 
     [LoggerMessage(2, LogLevel.Error, "Cannot publish values. Queue will be cleared.")]
-    internal static partial void PublishWithCompletedQueueFailed(this ILogger logger);
+    internal static partial void PublishWithCompletedQueueFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(3, LogLevel.Warning, "Cannot read desired property '{Property}' of device '{DeviceId}'. The value is skipped.")]
+    internal static partial void DesiredPropertyUnreadable(this ILogger logger, string deviceId, string property, Exception exception);
+
+    [LoggerMessage(4, LogLevel.Error, "Cannot read the device twin of '{DeviceId}'. Desired properties apply from the next patch.")]
+    internal static partial void ReadingTwinFailed(this ILogger logger, string deviceId, Exception exception);
+
+    [LoggerMessage(5, LogLevel.Error, "Azure IoT Hub rejected data for device '{DeviceId}'. The data is dropped.")]
+    internal static partial void DataRejected(this ILogger logger, string deviceId, Exception exception);
+
+    [LoggerMessage(6, LogLevel.Error, "Cannot process values for Azure IoT Hub. The values of this engine cycle are dropped.")]
+    internal static partial void ProcessingValuesFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(7, LogLevel.Warning, "Reported property '{Property}' is skipped: device twins accept integers only between -4503599627370496 and 4503599627370495, but the value is {Value}. Further values are skipped without a warning until one is back in range.")]
+    internal static partial void ReportedIntegerOutOfRange(this ILogger logger, string property, object? value);
+
+    [LoggerMessage(8, LogLevel.Error, "Azure IoT Hub refuses {Operation} of device '{DeviceId}'. They are dropped without a further error until the hub accepts them again.")]
+    internal static partial void DeviceRefused(this ILogger logger, string deviceId, string operation, Exception exception);
 }

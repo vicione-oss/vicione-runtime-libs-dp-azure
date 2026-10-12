@@ -12,6 +12,7 @@
 - Update `Microsoft.Azure.Devices.Client` to `1.42.4`
 - Limit the tree depth of both DataPorts to 64
 - Write property display names in sentence case and explain `Bulk size`, `Max pending messages` and the EventGrid properties in their descriptions
+- **Breaking:** `AzureIotHubDataPortIncoming` takes an `ILogger<AzureIotHubDataPortIncoming>` in its constructor
 - Update `ViciOne.Suite.DataPort` to `1.0.0`
 
 ### Fixed
@@ -20,6 +21,17 @@
 - Mask the EventGrid topic access key input
 - Restrict IoT Hub `Telemetry` to outbound
 - Reject `.`, `$` and spaces in IoT Hub JSON structure and data point names
+- Send EventGrid event times in UTC and use the current time for values without a timestamp, so the first event after a deploy is no longer lost east of UTC
+- Write `NaN` and `±Infinity` as the strings `"NaN"`, `"Infinity"` and `"-Infinity"` in IoT Hub telemetry, reported properties and EventGrid events instead of failing the whole message
+- Apply IoT Hub desired-property patches that contain only some of the configured keys, and skip a desired value that does not match its type with a warning instead of dropping the whole patch
+- Read the IoT Hub device twin in the background after connecting, so desired properties set before a deploy or while the edge was offline reach the engine without holding up its start
+- Apply the twin read on connect first and the desired-property patches that arrive meanwhile after it in `$version` order, so neither a newer patch nor a key only in the twin is lost
+- Log and drop IoT Hub telemetry or reported properties the hub rejects, instead of re-queuing them forever and blocking every later value
+- Retry only the failed IoT Hub message after a transient error, so telemetry the hub already accepted is never sent twice
+- Drop the telemetry or reported properties of a device IoT Hub refuses, for example a deleted device or a refused key, with one error until the hub accepts them again, so the other devices keep sending
+- Finish an IoT Hub disconnect within 10 seconds while the hub is unreachable, dropping the values still queued, instead of waiting forever
+- Skip `Int64` and `UInt64` reported properties outside the device twin range of `-4503599627370496` to `4503599627370495`, so the rest of the patch is still accepted, with one warning per property until its value is back in range
+- Publish values queued before the send loop of the IoT Hub and EventGrid DataPorts starts, and a backlog larger than `Bulk size`, without waiting for the next value
 
 ## 0.32.0 - 2026-05-11
 

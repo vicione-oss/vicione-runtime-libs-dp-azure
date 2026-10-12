@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Azure.Devices.Client.Exceptions;
 using Microsoft.Azure.Devices.Shared;
 using Microsoft.Extensions.Logging;
 using ViciOne.ManagedEngine.ExternalCommunication;
@@ -11,45 +12,36 @@ namespace ViciOne.Suite.DataPort;
 
 public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication<AzureIotHubDataPortCommunication>, IAsyncDisposable
 {
-    private readonly TaskPipeline<bool> _taskPipeline;
-    private readonly AzureIotHubDataPortCommunication _communication;
-    private readonly IDeviceClientPool _deviceClientPool;
+    internal static TimeSpan DisconnectFlushTimeout { get; } = TimeSpan.FromSeconds(10);
+
+    private readonly Func<CancellationToken, Task<IDictionary<Guid, VirtualDeviceClient>>> _createDeviceClients;
     private readonly TelemetryHandler _telemetryHandler;
     private readonly ReportedPropertyHandler _reportedPropertyHandler;
     private readonly ILogger _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly int _queueSize;
     private readonly int _bulkSize;
     private ManagedQueue<IReadOnlyCollection<ExternalValue>>? _queue;
     private Task? _queueTask;
+    private CancellationTokenSource? _deliveryCancellation;
+    // Only the send loop delivers, so the set needs no lock.
+    private readonly HashSet<(string DeviceId, string Operation)> _refusedOperations = [];
 
     private IDictionary<Guid, VirtualDeviceClient>? _nodeDeviceClients;
 
     public AzureIotHubDataPortOutgoing(AzureIotHubDataPortCommunication communication, ILogger<AzureIotHubDataPortOutgoing> logger)
-        : this(communication, DeviceClientPool.Instance, logger)
+        : this(communication, cancellationToken => AzureSetup.CreateDeviceClients(communication, DeviceClientPool.Instance, cancellationToken), logger)
     { }
 
-    internal AzureIotHubDataPortOutgoing(AzureIotHubDataPortCommunication communication, IDeviceClientPool deviceClientPool, ILogger<AzureIotHubDataPortOutgoing> logger)
+    internal AzureIotHubDataPortOutgoing(AzureIotHubDataPortCommunication communication, Func<CancellationToken, Task<IDictionary<Guid, VirtualDeviceClient>>> createDeviceClients, ILogger<AzureIotHubDataPortOutgoing> logger, TimeProvider? timeProvider = null)
     {
-        _communication = communication;
-        _deviceClientPool = deviceClientPool;
+        _createDeviceClients = createDeviceClients;
         _telemetryHandler = new(communication, SendEventsToDevice);
-        _reportedPropertyHandler = new(communication, UpdateReportedProperties);
+        _reportedPropertyHandler = new(communication, UpdateReportedProperties, logger);
         _queueSize = communication.MaxPendingMessages;
         _bulkSize = communication.BulkSize;
         _logger = logger;
-        _taskPipeline = new(
-            3,
-            retrycount =>
-            {
-                return retrycount switch
-                {
-                    0 => TimeSpan.Zero,
-                    1 => TimeSpan.FromSeconds(1),
-                    2 => TimeSpan.FromSeconds(5),
-                    _ => TimeSpan.FromSeconds(10),
-                };
-            },
-            false);
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task ConnectAsync(CancellationToken cancellationToken)
@@ -57,37 +49,32 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         if (_nodeDeviceClients is not null)
             return;
 
-        _nodeDeviceClients = await AzureSetup.CreateDeviceClients(_communication, _deviceClientPool, cancellationToken).ConfigureAwait(false);
+        _nodeDeviceClients = await _createDeviceClients(cancellationToken).ConfigureAwait(false);
 
         foreach (var (_, deviceClient) in _nodeDeviceClients)
             await deviceClient.Connect(cancellationToken).ConfigureAwait(false);
 
         _queue ??= new(_queueSize, _logger, string.Empty);
+        _deliveryCancellation ??= new();
         _queueTask ??= Task.Run(ProcessQueueAsync, cancellationToken);
     }
 
     private async Task ProcessQueueAsync()
     {
-        if (_queue is null)
+        if (_queue is null || _deliveryCancellation is null)
             throw new InvalidOperationException("Queue must be initialized.");
 
-        await foreach (var items in _queue.GetAsyncEnumerator(_bulkSize))
-            await ProcessBatchAsync(items, _queue, PublishAsync, _taskPipeline, _logger.PublishBatchFailed, _logger.PublishWithCompletedQueueFailed).ConfigureAwait(false);
-    }
+        var cancellationToken = _deliveryCancellation.Token;
 
-    private static async Task ProcessBatchAsync<T>(List<T> items, ManagedQueue<T> queue, Func<List<T>, CancellationToken, ValueTask<bool>> publishAsync, TaskPipeline<bool> resiliencePipeline, Action publishFailed, Action publishWithCompletedQueueFailed) where T : notnull
-    {
-        if (!await resiliencePipeline.ExecuteAsync(cancellationToken => publishAsync(items, cancellationToken), CancellationToken.None).ConfigureAwait(false))
+        await foreach (var batch in _queue.GetAsyncEnumerator(_bulkSize))
         {
-            if (queue.IsAddingCompleted)
+            foreach (var values in batch)
             {
-                publishWithCompletedQueueFailed();
-                queue.Clear();
-            }
-            else
-            {
-                publishFailed();
-                queue.Prepend(items);
+                if (await PublishAsync(values, cancellationToken).ConfigureAwait(false))
+                    continue;
+
+                _queue.Clear();
+                break;
             }
         }
     }
@@ -98,13 +85,15 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
 
         if (_queueTask is not null)
         {
-            await _queueTask.ConfigureAwait(false);
+            await FlushQueueAsync(_queueTask, cancellationToken).ConfigureAwait(false);
             _queueTask.Dispose();
             _queueTask = null;
         }
 
         _queue?.Dispose();
         _queue = null;
+        _deliveryCancellation?.Dispose();
+        _deliveryCancellation = null;
 
         if (_nodeDeviceClients is null)
             return;
@@ -119,11 +108,26 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         _nodeDeviceClients = null;
     }
 
+    // The SDK retries transient errors without end, so a send towards an unreachable hub only returns once its
+    // token is cancelled.
+    private async Task FlushQueueAsync(Task queueTask, CancellationToken cancellationToken)
+    {
+        using CancellationTokenSource flushTimeout = new(DisconnectFlushTimeout, _timeProvider);
+        await using var onFlushTimeout = flushTimeout.Token.Register(CancelDelivery).ConfigureAwait(false);
+        await using var onCancellation = cancellationToken.Register(CancelDelivery).ConfigureAwait(false);
+
+        await queueTask.ConfigureAwait(false);
+    }
+
+    private void CancelDelivery()
+        => _deliveryCancellation?.Cancel();
+
     public async ValueTask DisposeAsync()
     {
         if (_nodeDeviceClients is not null)
         {
             _queue?.CompleteAdding();
+            CancelDelivery();
 
             foreach (var deviceClient in _nodeDeviceClients.Values)
                 await deviceClient.DisposeAsync().ConfigureAwait(false);
@@ -133,21 +137,82 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         }
     }
 
-    private async Task SendEventsToDevice(Guid deviceId, Message message, CancellationToken cancellationToken)
+    private Task SendEventsToDevice(Guid deviceNodeId, Func<Message> createMessage, CancellationToken cancellationToken)
+        => DeliverAsync(deviceNodeId, "telemetry", async deviceClient =>
+        {
+            using var message = createMessage();
+            await deviceClient.SendEventAsync(message, cancellationToken).ConfigureAwait(false);
+        }, cancellationToken);
+
+    private Task UpdateReportedProperties(Guid deviceNodeId, TwinCollection collection, CancellationToken cancellationToken)
+        => DeliverAsync(deviceNodeId, "reported properties", deviceClient => deviceClient.UpdateReportedPropertiesAsync(collection, cancellationToken), cancellationToken);
+
+    // Failures are retried until the queue completes; nothing goes back into the queue, so data the hub already
+    // accepted is never sent twice. A rejected message and the data of a refused device are dropped, because all
+    // devices share the queue and retrying them would block every later value.
+    private async Task DeliverAsync(Guid deviceNodeId, string operation, Func<IDeviceClient, Task> send, CancellationToken cancellationToken)
     {
         if (_nodeDeviceClients is null)
             throw new InvalidOperationException("Device clients not initialized.");
 
-        await _nodeDeviceClients[deviceId].InternalDeviceClient.SendEventAsync(message, cancellationToken).ConfigureAwait(false);
+        var deviceClient = _nodeDeviceClients[deviceNodeId];
+
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await send(deviceClient.InternalDeviceClient).ConfigureAwait(false);
+                _refusedOperations.Remove((deviceClient.DeviceId, operation));
+                return;
+            }
+            catch (Exception ex) when (IsDataRejection(ex))
+            {
+                _logger.DataRejected(deviceClient.DeviceId, ex);
+                return;
+            }
+            catch (Exception ex) when (IsDeviceRefusal(ex))
+            {
+                if (_refusedOperations.Add((deviceClient.DeviceId, operation)))
+                    _logger.DeviceRefused(deviceClient.DeviceId, operation, ex);
+
+                return;
+            }
+            catch (Exception ex) when (cancellationToken.IsCancellationRequested || _queue is null or { IsAddingCompleted: true })
+            {
+                throw new OperationCanceledException("Delivery stopped because the DataPort disconnects.", ex);
+            }
+            catch (Exception ex)
+            {
+                var delay = GetRetryDelay(attempt);
+                _logger.PublishingFailed(deviceClient.DeviceId, delay, ex);
+                await Task.Delay(delay, _timeProvider, cancellationToken).ConfigureAwait(false);
+            }
+        }
     }
 
-    private async Task UpdateReportedProperties(Guid deviceId, TwinCollection collection, CancellationToken cancellationToken)
-    {
-        if (_nodeDeviceClients is null)
-            throw new InvalidOperationException("Device clients not initialized.");
+    // The SDK reports a refused message or patch as one of these; a plain IotHubException carries the 4xx response
+    // to a twin request.
+    private static bool IsDataRejection(Exception exception)
+        => exception switch
+        {
+            MessageTooLargeException or ArgumentException => true,
+            IotHubException { IsTransient: false } iotHubException => iotHubException.GetType() == typeof(IotHubException),
+            _ => false,
+        };
 
-        await _nodeDeviceClients[deviceId].InternalDeviceClient.UpdateReportedPropertiesAsync(collection, cancellationToken).ConfigureAwait(false);
-    }
+    // An unknown device or a refused key, and the AMQP conditions not-allowed and not-implemented, concern one
+    // device. Everything else, such as a suspended hub or the daily quota, stops every device alike, so its data
+    // stays queued until the hub accepts it again.
+    private static bool IsDeviceRefusal(Exception exception)
+        => exception is DeviceNotFoundException or UnauthorizedException or InvalidOperationException or NotSupportedException;
+
+    private static TimeSpan GetRetryDelay(int attempt)
+        => attempt switch
+        {
+            0 => TimeSpan.FromSeconds(1),
+            1 => TimeSpan.FromSeconds(5),
+            _ => TimeSpan.FromSeconds(10),
+        };
 
     public Task SendAsync(ulong engineCycle, IReadOnlyCollection<ExternalValue> values, CancellationToken cancellationToken)
     {
@@ -156,20 +221,21 @@ public sealed class AzureIotHubDataPortOutgoing : IExternalOutgoingCommunication
         return Task.CompletedTask;
     }
 
-    private async ValueTask<bool> PublishAsync(IReadOnlyCollection<IReadOnlyCollection<ExternalValue>> valuesCollection, CancellationToken cancellationToken)
+    private async Task<bool> PublishAsync(IReadOnlyCollection<ExternalValue> values, CancellationToken cancellationToken)
     {
         try
         {
-            foreach (var values in valuesCollection)
-            {
-                await _telemetryHandler.Process(values, cancellationToken).ConfigureAwait(false);
-                await _reportedPropertyHandler.Process(values, cancellationToken).ConfigureAwait(false);
-            }
+            await _telemetryHandler.Process(values, cancellationToken).ConfigureAwait(false);
+            await _reportedPropertyHandler.Process(values, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.PublishWithCompletedQueueFailed(ex.InnerException ?? ex);
+            return false;
         }
         catch (Exception ex)
         {
-            _logger.PublishingFailed(ex);
-            return false;
+            _logger.ProcessingValuesFailed(ex);
         }
 
         return true;
