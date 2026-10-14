@@ -55,9 +55,9 @@
       },
       "ViciOne.Tree.Builder": {
         "type": "Direct",
-        "requested": "[3.0.0, )",
-        "resolved": "3.0.0",
-        "contentHash": "iDO1AEB0vVw9VsUjkMEtx1HyQg74jznOPf9fjEeLRvMAWU7n7/BU6OlRvUATRhbTCKLx32N9BrnokgoM8NfHpQ==",
+        "requested": "[3.1.0, )",
+        "resolved": "3.1.0",
+        "contentHash": "LNnyem9JoAsIRvXqosWGr78ywO9pwUCQnZp37buca5HVtFsf6Co/vFZEwmDIpQ/Q3YXzKnEddw6RXV8rajZNuA==",
         "dependencies": {
           "AngleSharp": "1.6.0",
           "YamlDotNet": "16.3.0"
